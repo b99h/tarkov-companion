@@ -36,6 +36,16 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Pre-create the draft release electron-builder uploads into. Left to
+      # itself, its nsis and portable publishers race to create one and GitHub
+      # allows duplicate releases per tag — observed on v1.0.1/v1.0.2, where
+      # each run produced TWO releases with the assets split between them.
+      # With the draft already present, both publishers find and reuse it.
+      - name: Create draft release
+        run: gh release create ${{ github.ref_name }} --repo ${{ github.repository }} --draft --title ${{ github.ref_name }} --notes "Tarkov Companion ${{ github.ref_name }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Package and publish to GitHub Releases
         run: npx electron-builder --win --publish always
         env:
