@@ -1,6 +1,6 @@
 {
   "name": "tarkov-companion",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Escape From Tarkov quest/Kappa companion app",
   "author": "b99h",
   "main": "./out/main/index.js",
