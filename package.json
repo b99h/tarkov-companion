@@ -1,0 +1,77 @@
+{
+  "name": "tarkov-companion",
+  "version": "1.0.0",
+  "description": "Escape From Tarkov quest/Kappa companion app",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
+    "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "test": "vitest run",
+    "dist:win": "npm run build && electron-builder --win --dir",
+    "package:win": "npm run build && electron-builder --win"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/leaflet": "^1.9.21",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.7.0",
+    "electron": "^43.1.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "jsdom": "^29.1.1",
+    "typescript": "^7.0.2",
+    "vite": "^7.3.6",
+    "vitest": "^4.1.10"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.1": true,
+    "electron-winstaller@5.4.0": true
+  },
+  "dependencies": {
+    "@electron-toolkit/preload": "^3.0.2",
+    "@electron-toolkit/utils": "^4.0.0",
+    "leaflet": "^1.9.4",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "tesseract.js": "^7.0.0"
+  },
+  "build": {
+    "appId": "com.tarkovcompanion.app",
+    "productName": "Tarkov Companion",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "resources",
+        "to": "."
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.exe"
+    }
+  }
+}

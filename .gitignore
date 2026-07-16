@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Build output
+out/
+dist/
+
+# Local logs and scratch files
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Note: resources/eng.traineddata is a BUNDLED asset and must stay committed —
+# without it the packaged app's OCR cannot work on a fresh clone.

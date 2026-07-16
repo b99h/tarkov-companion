@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- The Content-Security-Policy meta is injected here at build time by the
+         cspPlugin in electron.vite.config.ts — it ships in the packaged app but
+         is absent under `npm run dev`, where Vite's own inline preamble and HMR
+         websocket would violate it. See that plugin for the policy itself. -->
+    <title>Tarkov Companion</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

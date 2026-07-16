@@ -1,0 +1,1918 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #14151a;
+  color: #e8e8e8;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #2a2b31;
+}
+
+header h1 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.version {
+  color: #888;
+  font-size: 12px;
+}
+
+nav {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #2a2b31;
+}
+
+nav button {
+  background: #23242b;
+  color: #e8e8e8;
+  border: 1px solid #34353d;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+nav button.active {
+  background: #3a5ba0;
+  border-color: #4d75c9;
+}
+
+nav button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.profile-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #2a2b31;
+  font-size: 13px;
+}
+
+.profile-bar label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #aaa;
+}
+
+.profile-bar input[type='number'] {
+  width: 48px;
+}
+
+.profile-bar input,
+.profile-bar select {
+  background: #23242b;
+  color: #e8e8e8;
+  border: 1px solid #34353d;
+  border-radius: 4px;
+  padding: 4px 6px;
+}
+
+.reset-button {
+  margin-left: auto;
+  background: #4a2323;
+  color: #f0b8b8;
+  border: 1px solid #6b2f2f;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+main {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.error {
+  color: #f0b8b8;
+}
+
+.view-error {
+  max-width: 560px;
+  margin: 48px auto;
+  padding: 24px;
+  border: 1px solid #5a3a3a;
+  border-radius: 8px;
+  background: #2a1f1f;
+  text-align: center;
+}
+
+.view-error h2 {
+  margin-top: 0;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  color: #aaa;
+  font-size: 13px;
+}
+
+.board-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.search-box {
+  background: #23242b;
+  color: #e8e8e8;
+  border: 1px solid #34353d;
+  border-radius: 6px;
+  padding: 6px 10px;
+  min-width: 220px;
+}
+
+.group-by-toggle {
+  display: flex;
+  border: 1px solid #34353d;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.group-by-toggle button {
+  background: #23242b;
+  color: #e8e8e8;
+  border: none;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.group-by-toggle button.active {
+  background: #3a5ba0;
+}
+
+.sort-by-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sort-by-label {
+  color: #888;
+  font-size: 12px;
+}
+
+.sort-by-select {
+  background: #23242b;
+  color: #e8e8e8;
+  border: 1px solid #34353d;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.status-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  background: #23242b;
+  color: #999;
+  border: 1px solid #34353d;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.chip.active {
+  background: #3a5ba0;
+  border-color: #4d75c9;
+  color: #e8e8e8;
+}
+
+.chip.kappa-chip.active {
+  background: #4a3f14;
+  border-color: #8a731f;
+  color: #e0c341;
+}
+
+.expand-all-locked {
+  margin-left: auto;
+}
+
+.trader-group {
+  margin-bottom: 20px;
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #9db4dd;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.group-count {
+  color: #666;
+  font-size: 11px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.caret {
+  display: inline-block;
+  transition: transform 0.15s ease;
+  color: #666;
+  font-size: 11px;
+}
+
+.caret.collapsed {
+  transform: rotate(-90deg);
+}
+
+.trader-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.completed-folder {
+  margin-top: 4px;
+}
+
+.completed-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 12px;
+  padding: 6px 8px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+
+.quest-row {
+  border-radius: 4px;
+}
+
+.quest-row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+}
+
+.quest-row:hover {
+  background: #1c1d23;
+}
+
+.quest-row.flashed {
+  background: #2a3550;
+  transition: background 1.5s ease;
+}
+
+.quest-row.status-completed .quest-name {
+  color: #777;
+  text-decoration: line-through;
+}
+
+.quest-name {
+  flex: 1;
+  cursor: pointer;
+}
+
+.quest-name mark {
+  background: #6b5a1a;
+  color: #f0e0a0;
+  border-radius: 2px;
+}
+
+.kappa-star {
+  color: #e0c341;
+  margin-right: 4px;
+}
+
+.quest-level,
+.quest-trader {
+  color: #888;
+  font-size: 12px;
+}
+
+.status-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.map-track-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 2px;
+  opacity: 0.35;
+  filter: grayscale(1);
+  line-height: 1;
+}
+
+.map-track-toggle:hover {
+  opacity: 0.7;
+}
+
+.map-track-toggle.active {
+  opacity: 1;
+  filter: none;
+}
+
+.status-badge.status-completed {
+  background: #1e3a24;
+  color: #7fd396;
+}
+
+.status-badge.status-available {
+  background: #1b3050;
+  color: #7fb0f0;
+}
+
+.status-badge.status-locked {
+  background: #2a2b31;
+  color: #999;
+}
+
+.status-badge.status-level-locked {
+  background: #4a3419;
+  color: #e0a95f;
+}
+
+.status-badge.status-faction-locked {
+  background: #3a1e42;
+  color: #c98be0;
+}
+
+.quest-detail {
+  padding: 8px 8px 12px 40px;
+  font-size: 13px;
+  color: #ccc;
+  border-left: 2px solid #34353d;
+  margin-left: 8px;
+}
+
+.detail-section {
+  margin-bottom: 10px;
+}
+
+.detail-section h4 {
+  margin: 0 0 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #888;
+}
+
+.detail-section ul {
+  list-style: disc;
+  padding-left: 18px;
+  margin: 0;
+}
+
+.optional-tag {
+  color: #e0a95f;
+  margin-right: 4px;
+  font-size: 12px;
+}
+
+.objective-item {
+  color: #9db4dd;
+}
+
+.fir-badge {
+  background: #1e3a24;
+  color: #7fd396;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 4px;
+}
+
+.prereq-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.prereq-chip {
+  background: #2a2b31;
+  color: #9db4dd;
+}
+
+.unlocks-note {
+  color: #e0c341;
+  font-size: 12px;
+  margin: 8px 0;
+}
+
+.wiki-link {
+  display: inline-block;
+  color: #7fb0f0;
+  font-size: 12px;
+  text-decoration: none;
+  margin-top: 4px;
+}
+
+.wiki-link:hover {
+  text-decoration: underline;
+}
+
+.kappa-progress .progress-bar {
+  background: #23242b;
+  border-radius: 999px;
+  height: 12px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.kappa-progress .progress-fill {
+  background: linear-gradient(90deg, #4d75c9, #7fd396);
+  height: 100%;
+}
+
+.next-targets ol {
+  padding-left: 20px;
+}
+
+.next-targets li {
+  margin-bottom: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.reasons {
+  color: #888;
+  font-size: 12px;
+}
+
+.hoard-list .hint {
+  color: #888;
+  font-size: 12px;
+  margin-top: -4px;
+}
+
+.hoard-list ul {
+  list-style: none;
+  padding: 0;
+}
+
+.hoard-list li {
+  display: flex;
+  gap: 10px;
+  padding: 4px 0;
+  border-bottom: 1px solid #202127;
+}
+
+.item-count {
+  color: #e0c341;
+}
+
+.needed-for {
+  color: #888;
+  font-size: 12px;
+}
+
+section {
+  margin-bottom: 24px;
+}
+
+section h2 {
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+
+/* ── Phase 2: log watcher settings + toasts ─────────────────────────────── */
+
+.settings {
+  max-width: 760px;
+}
+
+.settings-block {
+  background: #1b1c22;
+  border: 1px solid #2a2b31;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 6px 12px;
+  margin: 0 0 14px;
+}
+
+.status-grid dt {
+  color: #888;
+  font-size: 13px;
+}
+
+.status-grid dd {
+  margin: 0;
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.source-tag {
+  color: #888;
+}
+
+.muted {
+  color: #888;
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.dot-on {
+  background: #4caf6a;
+  box-shadow: 0 0 6px #4caf6a;
+}
+
+.dot-off {
+  background: #6a6b73;
+}
+
+.button-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.settings button {
+  background: #23242b;
+  color: #e8e8e8;
+  border: 1px solid #34353d;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.settings button.active {
+  background: #3a5ba0;
+  border-color: #4d75c9;
+}
+
+.settings button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.hotkey-input {
+  background: #1b1c22;
+  color: #e8e8e8;
+  border: 1px solid #34353d;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  width: 180px;
+}
+
+kbd {
+  background: #2a2b33;
+  border: 1px solid #45464f;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-family: inherit;
+  font-size: 0.9em;
+  color: #e8e8e8;
+}
+
+.hint {
+  color: #999;
+  font-size: 12px;
+  margin: 8px 0;
+}
+
+.session-list {
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid #2a2b31;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.session-row {
+  display: grid;
+  grid-template-columns: 22px 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-bottom: 1px solid #202127;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.session-row:last-child {
+  border-bottom: none;
+}
+
+.session-row.imported {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.session-name {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+
+.session-date {
+  color: #888;
+}
+
+.session-badge {
+  color: #4caf6a;
+  font-size: 11px;
+}
+
+.import-summary {
+  margin-top: 12px;
+  color: #4caf6a;
+  font-size: 13px;
+}
+
+.toast-stack {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1000;
+}
+
+.toast {
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  max-width: 320px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #23242b;
+  border: 1px solid #34353d;
+  border-left-width: 4px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  animation: toast-in 160ms ease-out;
+}
+
+.toast-finished {
+  border-left-color: #4caf6a;
+}
+
+.toast-started {
+  border-left-color: #4d75c9;
+}
+
+.toast-failed {
+  border-left-color: #c9564d;
+}
+
+.toast-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #999;
+}
+
+.toast-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ── Phase 3: flea quick-cash + hideout crafts ──────────────────────────── */
+
+.collapsible-section {
+  background: #1b1c22;
+  border: 1px solid #2a2b31;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.collapsible-section .group-header {
+  margin-bottom: 4px;
+}
+
+.item-category {
+  margin-top: 14px;
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: #9db4dd;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 0;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+
+.category-header:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.caveat {
+  color: #e0a95f;
+  font-size: 12px;
+  margin: 2px 0 8px;
+}
+
+.flea-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.flea-toolbar .toggle-row {
+  margin-bottom: 0;
+}
+
+.flea-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.flea-table th {
+  text-align: left;
+  color: #888;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-bottom: 1px solid #2a2b31;
+}
+
+.flea-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid #202127;
+  vertical-align: middle;
+}
+
+.flea-table .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.flea-item-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.flea-icon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 3px;
+  background: #23242b;
+}
+
+.flea-price {
+  color: #e0c341;
+  font-weight: 600;
+}
+
+.trend.up {
+  color: #7fd396;
+}
+
+.trend.down {
+  color: #e0857f;
+}
+
+.trend.flat {
+  color: #888;
+}
+
+.beats-flea {
+  color: #7fd396;
+}
+
+.vendor-name {
+  color: #888;
+  font-size: 11px;
+}
+
+.quest-warn {
+  color: #e0a95f;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.craft-table .unlock-note {
+  display: inline-block;
+  color: #9db4dd;
+  font-size: 11px;
+  margin-left: 8px;
+}
+
+.profit-text {
+  color: #7fd396;
+  font-weight: 600;
+}
+
+.loss-text {
+  color: #e0857f;
+  font-weight: 600;
+}
+
+.flea-table tr.loss {
+  opacity: 0.65;
+}
+
+/* ── Phase 4.7.1: ammo chart ────────────────────────────────────────────── */
+
+.ammo-view {
+  padding: 12px 16px;
+}
+
+.ammo-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.ammo-caliber-select {
+  background: #23242b;
+  color: #e8e8e8;
+  border: 1px solid #34353d;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.ammo-count {
+  color: #888;
+  font-size: 12px;
+  margin-left: auto;
+}
+
+.flea-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.flea-table th.sortable:hover {
+  color: #cfcfcf;
+}
+
+.sort-arrow {
+  color: #9db4dd;
+}
+
+.pellet-count {
+  color: #9db4dd;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ammo-table .pen-cell {
+  font-weight: 700;
+}
+
+.src-badges {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.src-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.src-flea {
+  color: #e0c341;
+  border-color: #6a5f21;
+  background: #2a2717;
+}
+
+.src-trader {
+  color: #9db4dd;
+  border-color: #34425f;
+  background: #1b2130;
+}
+
+.src-barter {
+  color: #b79ddd;
+  border-color: #453460;
+  background: #241b30;
+}
+
+.src-craft {
+  color: #7fd396;
+  border-color: #2f5f3d;
+  background: #182a1e;
+}
+
+.src-fir {
+  color: #e0895f;
+  border-color: #6a3f21;
+  background: #2a1d17;
+}
+
+/* Community 6-tier pen banding: green (high pen) → red (low pen). */
+.pen-t6 {
+  color: #57d977;
+}
+.pen-t5 {
+  color: #9bd957;
+}
+.pen-t4 {
+  color: #d9d957;
+}
+.pen-t3 {
+  color: #e0b341;
+}
+.pen-t2 {
+  color: #e0895f;
+}
+.pen-t1 {
+  color: #e0857f;
+}
+
+/* ── Phase 4: interactive maps ──────────────────────────────────────────── */
+
+.map-view {
+  display: flex;
+  flex-direction: column;
+  /* Fill the main scroll area; the canvas takes the rest. */
+  height: calc(100vh - 190px);
+  min-height: 420px;
+}
+
+.map-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.map-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.map-picker .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.map-toolbar .toggle-row {
+  margin-bottom: 0;
+}
+
+.map-toolbar-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.chip.static-ref {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.static-badge {
+  background: #4a3419;
+  color: #e0a95f;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.map-canvas-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.map-static-note {
+  color: #999;
+  font-size: 12px;
+  margin: 0 0 10px;
+}
+
+.bd-spawn-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 14px;
+}
+
+.bd-spawn-table th {
+  text-align: left;
+  color: #888;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 6px;
+  border-bottom: 1px solid #2a2b31;
+}
+
+.bd-spawn-table td {
+  padding: 4px 6px;
+  border-bottom: 1px solid #202127;
+  color: #ddd;
+}
+
+.bd-spawn-table .num {
+  text-align: right;
+  color: #e0c341;
+}
+
+.floor-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  background: #1b1c22;
+  border: 1px solid #2a2b31;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+
+.floor-panel-title {
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 11px;
+}
+
+.floor-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #ddd;
+  cursor: pointer;
+}
+
+.floor-toggle input:disabled {
+  cursor: default;
+}
+
+.stacked-toggle {
+  margin-left: auto;
+  color: #9db4dd;
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4caf6a;
+  box-shadow: 0 0 6px #4caf6a;
+}
+
+.map-body {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+.map-canvas {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #2a2b31;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #0e0f13;
+}
+
+/* Leaflet renders a light default background; keep it dark to match the shell. */
+.map-canvas .leaflet-container {
+  height: 100%;
+  width: 100%;
+  background: #0e0f13;
+  font-family: inherit;
+}
+
+.map-legend {
+  width: 260px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  background: #1b1c22;
+  border: 1px solid #2a2b31;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.map-legend h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.map-legend ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: #ddd;
+  padding: 5px 4px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.legend-item:hover {
+  background: #23242b;
+}
+
+.legend-item-static {
+  cursor: default;
+}
+
+.legend-item-static:hover {
+  background: none;
+}
+
+.legend-subheading {
+  margin: 12px 0 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #888;
+}
+
+.legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legend-name {
+  flex: 1;
+}
+
+.legend-trader {
+  color: #888;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.legend-pin-count {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: #e0c341;
+  white-space: nowrap;
+}
+
+.legend-row-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.legend-item .caret {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: #888;
+  transition: transform 0.1s ease;
+}
+
+.legend-item .caret.collapsed {
+  transform: rotate(-90deg);
+}
+
+/* Inline detail for an unpinned "also active here" quest. */
+.legend-detail {
+  margin: 2px 0 8px 26px;
+  padding: 8px 10px;
+  background: #1c1d23;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #cfcfcf;
+}
+
+.legend-detail-img {
+  width: 100%;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+
+.legend-detail-objectives {
+  list-style: disc;
+  margin: 0 0 6px;
+  padding-left: 16px;
+}
+
+.legend-detail-objectives li {
+  margin-bottom: 4px;
+}
+
+.map-legend .hint {
+  margin-top: 12px;
+}
+
+/* Per-quest mute row: checkbox to hide a quest from the map, next to its entry. */
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-row .legend-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.legend-mute {
+  flex-shrink: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.legend-row-muted {
+  opacity: 0.55;
+}
+
+.legend-hidden-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.legend-hidden-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: #888;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.legend-hidden-toggle .caret {
+  transition: transform 0.1s ease;
+}
+
+.legend-hidden-toggle .caret.collapsed {
+  transform: rotate(-90deg);
+}
+
+.legend-showall {
+  background: none;
+  border: none;
+  color: #7fb0f0;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.legend-showall:hover {
+  text-decoration: underline;
+}
+
+/* Marker + popup styling (popups use Leaflet's default DOM). */
+/* NOTE: never set `position` here. Leaflet positions marker icons with
+ * `.leaflet-marker-icon { position: absolute }` + a translate3d transform; this
+ * selector has the same specificity and loads later, so declaring `position:
+ * relative` silently knocked every marker into normal flow — they stacked down
+ * the marker pane in a vertical trail and the transform only nudged them from
+ * there, which read as "pins don't line up with the map" on every map. The
+ * absolute icon is already a containing block, so .map-marked-badge still
+ * anchors to it. */
+.map-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.8));
+  overflow: visible;
+}
+
+.map-marker-dot {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #14151a;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.6);
+}
+
+/* User-placed teardrop pin — anchored at its tip (see customPinIcon). */
+.map-custom-pin {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
+}
+.map-custom-pin svg {
+  display: block;
+}
+
+/* Keycard door marker: the keycard's own picture in place of the 🔒 icon. */
+.map-keycard-marker {
+  display: block;
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  border-radius: 3px;
+  background: rgba(20, 21, 26, 0.85);
+  border: 1px solid #34353d;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+}
+
+.map-popup-keycard {
+  display: block;
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  margin: 6px 0;
+  border-radius: 4px;
+  background: #14151a;
+  border: 1px solid #34353d;
+}
+
+/* Marked-room indicator (Dorms 314 & co.): a gold ring around the lock/keycard
+   icon plus a small star badge, so these 7 special doors stand out from
+   ordinary locked rooms. */
+.map-keycard-marker.map-marked-room {
+  border-color: #e0c341;
+  box-shadow: 0 0 0 2px #e0c341, 0 0 6px rgba(224, 195, 65, 0.8);
+}
+
+.map-lock-marker.map-marked-room {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px #e0c341, 0 0 6px rgba(224, 195, 65, 0.8);
+}
+
+.map-marked-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  font-size: 11px;
+  line-height: 1;
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.9));
+}
+
+.map-popup-marked {
+  color: #e0c341;
+  font-size: 12px;
+  margin: 2px 0;
+}
+
+/* Extract-type facet (PMC / Scav / Co-op / Transit) in the map toolbar. */
+.extract-facet {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.extract-facet-label {
+  font-size: 12px;
+  color: #9db4dd;
+}
+
+/* Add-marker mode: crosshair over the whole map + a floating hint. */
+.map-canvas.add-marker-mode .leaflet-container {
+  cursor: crosshair;
+}
+
+.add-marker-hint {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 500;
+  background: rgba(27, 28, 34, 0.95);
+  color: #e8e8e8;
+  border: 1px solid #34353d;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+/* Notes & custom-markers sidebar panel (Phase 4.7.3a). */
+.map-notes-panel {
+  margin: 4px 0 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #2a2b33;
+}
+
+.map-notes-input {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  background: #14151a;
+  color: #e8e8e8;
+  border: 1px solid #34353d;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 12px;
+}
+
+.map-markers-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.map-marker-add-btn {
+  background: #23242c;
+  color: #e8e8e8;
+  border: 1px solid #34353d;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.map-marker-add-btn:hover:not(:disabled) {
+  background: #2c2d36;
+}
+
+.map-marker-add-btn.active {
+  background: #3a3320;
+  border-color: #e0c341;
+  color: #e0c341;
+}
+
+.map-marker-add-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.map-markers-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+}
+
+.map-marker-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.map-marker-focus,
+.map-marker-delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  color: #888;
+}
+
+.map-marker-focus:hover,
+.map-marker-delete:hover {
+  color: #e8e8e8;
+}
+
+.map-marker-label-input {
+  flex: 1;
+  min-width: 0;
+  background: #14151a;
+  color: #e8e8e8;
+  border: 1px solid #34353d;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font: inherit;
+  font-size: 12px;
+}
+
+.map-popup-wrap .leaflet-popup-content-wrapper {
+  background: #1b1c22;
+  color: #e8e8e8;
+  border: 1px solid #34353d;
+  border-radius: 8px;
+}
+
+.map-popup-wrap .leaflet-popup-tip {
+  background: #1b1c22;
+  border: 1px solid #34353d;
+}
+
+.map-popup-wrap .leaflet-popup-content {
+  margin: 10px 12px;
+  font-size: 13px;
+}
+
+.map-popup-task {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.map-popup-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.map-popup-kappa {
+  color: #e0c341;
+}
+
+.map-popup-trader {
+  color: #888;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.map-popup-img {
+  display: block;
+  width: 100%;
+  max-width: 232px;
+  border-radius: 4px;
+  margin: 6px 0;
+}
+
+.map-popup-floor {
+  color: #9db4dd;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.map-popup-obj {
+  color: #ccc;
+}
+
+.map-popup-opt {
+  color: #e0a95f;
+}
+
+.map-popup-items {
+  list-style: disc;
+  padding-left: 18px;
+  margin: 6px 0 0;
+  color: #9db4dd;
+}
+
+.map-fir {
+  color: #7fd396;
+  font-size: 10px;
+}
+
+.map-popup-wiki {
+  display: inline-block;
+  margin-top: 6px;
+  color: #7fb0f0;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.map-popup-wiki:hover {
+  text-decoration: underline;
+}
+
+/* ── Phase 4.65: wiki location screenshots (popup gallery + lightbox) ──────── */
+
+.wiki-gallery-slot:empty {
+  display: none;
+}
+
+.wiki-gallery {
+  margin: 8px 0 2px;
+}
+
+.wiki-gallery-heading {
+  margin: 8px 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #9db4dd;
+}
+
+.wiki-gallery-loading,
+.wiki-gallery-empty {
+  margin: 6px 0 2px;
+  font-size: 12px;
+  color: #888;
+}
+
+.wiki-gallery-strip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.wiki-thumb {
+  flex: 0 0 auto;
+  width: 96px;
+  padding: 0;
+  border: 1px solid #34353d;
+  border-radius: 4px;
+  background: #14151a;
+  cursor: pointer;
+  overflow: hidden;
+  text-align: left;
+  transition: border-color 0.12s;
+}
+
+.wiki-thumb:hover {
+  border-color: #7fb0f0;
+}
+
+.wiki-thumb img {
+  display: block;
+  width: 100%;
+  height: 60px;
+  object-fit: cover;
+}
+
+.wiki-thumb-caption {
+  /* Two-line clamp so captions stay readable without ballooning the popup. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  padding: 3px 4px;
+  font-size: 10px;
+  line-height: 1.25;
+  color: #bbb;
+}
+
+.wiki-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px;
+  background: rgba(0, 0, 0, 0.82);
+}
+
+.wiki-lightbox-figure {
+  margin: 0;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.wiki-lightbox-img {
+  max-width: 90vw;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: 6px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+}
+
+.wiki-lightbox-caption {
+  margin-top: 10px;
+  max-width: 80vw;
+  text-align: center;
+  font-size: 13px;
+  color: #e8e8e8;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.wiki-lightbox-counter {
+  color: #888;
+  font-size: 12px;
+}
+
+.wiki-lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.wiki-lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.wiki-lightbox-nav {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.wiki-lightbox-nav:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ── Quest Catchup: OCR-driven bulk progress inference ──────────────────── */
+
+.catchup-screenshot-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.catchup-screenshot-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: #1b1c22;
+  border: 1px solid #2a2b31;
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 11px;
+}
+
+.catchup-thumb {
+  max-width: 160px;
+  max-height: 100px;
+  object-fit: contain;
+  border-radius: 4px;
+  background: #0e0f13;
+}
+
+.catchup-match-list {
+  max-height: 320px;
+}
+
+.catchup-match-row {
+  grid-template-columns: 1fr auto;
+  cursor: default;
+}
+
+.catchup-match-row select {
+  background: #23242b;
+  color: #e8e8e8;
+  border: 1px solid #34353d;
+  border-radius: 4px;
+  padding: 4px 6px;
+}
+
+.catchup-trader-heading {
+  color: #9db4dd;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 8px 10px 2px;
+}
+
+.catchup-subheading {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #e0a95f;
+  margin: 16px 0 6px;
+}
+
+.catchup-unmatched {
+  margin-top: 12px;
+}
+
+.catchup-unmatched-toggle {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.catchup-unmatched-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  max-height: 160px;
+  overflow-y: auto;
+  font-size: 11px;
+  color: #666;
+}
+
+.catchup-unmatched-list li {
+  padding: 2px 0;
+  border-bottom: 1px solid #202127;
+}
