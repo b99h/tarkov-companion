@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { neededQuestItems } from '@shared/questEngine'
 import { scoreCrafts } from '@shared/craftEngine'
+import { priceDivergence } from '@shared/priceGuards'
 import { anyStationConfigured, canRunCraft, neededHideoutItems } from '@shared/hideoutEngine'
 import type { HideoutHoardEntry } from '@shared/hideoutEngine'
 import type { ItemData, CraftData, HideoutStationData } from '@shared/types'
@@ -88,6 +89,7 @@ function ItemTable({
             item.bestVendorSellRUB !== null && flea !== null && item.bestVendorSellRUB > flea
           const neededBy = questItems.get(item.id)
           const hideoutNeed = hideoutItems.get(item.id)
+          const divergence = priceDivergence(item.avg24hPrice, item.lastLowPrice)
           return (
             <tr key={item.id}>
               <td className="flea-item-cell">
@@ -96,7 +98,21 @@ function ItemTable({
                 )}
                 <span>{item.name}</span>
               </td>
-              <td className="num flea-price">{formatRUB(flea)}</td>
+              <td className="num flea-price">
+                {formatRUB(flea)}
+                {divergence && (
+                  <span
+                    className="volatile-warn"
+                    title={`Thin market — the two flea price signals disagree by ${Math.round(
+                      divergence.ratio * 100
+                    )}%: 24h avg ${formatRUB(divergence.avg24hPrice)}, last low ${formatRUB(
+                      divergence.lastLowPrice
+                    )}. Treat the quoted price with caution.`}
+                  >
+                    ⚡ volatile
+                  </span>
+                )}
+              </td>
               <td className="num">
                 <TrendArrow percent={item.changeLast48hPercent} />
               </td>

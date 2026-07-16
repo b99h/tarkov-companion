@@ -16,7 +16,8 @@ import type {
   QuestEventNotice,
   ScreenshotCapture,
   QuestWikiImages,
-  UpdateStatus
+  UpdateStatus,
+  OverlayStatus
 } from './types'
 
 export interface AppApi {
@@ -88,6 +89,13 @@ export interface AppApi {
   onQuestEvents: (callback: (notices: QuestEventNotice[]) => void) => () => void
   /** Watcher status changes (install found, session switched, raid map, etc.). */
   onWatcherStatus: (callback: (status: WatcherStatus) => void) => () => void
+
+  // ── Phase 12: in-game overlay ──
+  /** Show/hide the overlay window (the same action the global hotkey performs). */
+  toggleOverlay: () => Promise<OverlayStatus | null>
+  getOverlayStatus: () => Promise<OverlayStatus | null>
+  /** Overlay visibility / hotkey-registration changes. */
+  onOverlayStatus: (callback: (status: OverlayStatus) => void) => () => void
 
   // ── Phase 7.3: in-app updates ──
   /** Ask main to check GitHub Releases for a newer version right now. */

@@ -31,6 +31,7 @@ import { LogWatcher } from './logs/logWatcher'
 import { UpdateManager } from './updates'
 import { captureAndOcrClipboard, terminateOcrWorker } from './ocr/questOcr'
 import { CaptureManager } from './ocr/screenCapture'
+import { OverlayManager } from './overlay'
 import {
   clampPlayerLevel,
   clampStationLevel,
@@ -48,14 +49,19 @@ import type { QuestEventNotice, WatcherStatus, PlayerProgress } from '../shared/
 let mainWindow: BrowserWindow | null = null
 let watcher: LogWatcher | null = null
 let captureManager: CaptureManager | null = null
+let overlayManager: OverlayManager | null = null
 let updateManager: UpdateManager | null = null
 let tray: Tray | null = null
 // Set once the user actually chooses "Quit" (tray menu or OS quit), so the
 // window's 'close' handler knows to let it through instead of hiding to tray.
 let isQuitting = false
 
+// Broadcast, not mainWindow-only: the overlay window (Phase 12) subscribes to
+// the same progress/watcher pushes to stay live during a raid.
 function send(channel: string, payload: unknown): void {
-  mainWindow?.webContents.send(channel, payload)
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send(channel, payload)
+  }
 }
 
 /** App icon path: bundled resources dir when packaged, project resources/ in dev. */
@@ -91,6 +97,14 @@ function createWindow(startHidden: boolean): void {
       event.preventDefault()
       mainWindow?.hide()
     }
+  })
+
+  // A really-closed main window must take the overlay with it — otherwise the
+  // overlay (frameless, unclosable by the user) keeps 'window-all-closed' from
+  // ever firing and the app lingers with no way to quit it.
+  mainWindow.on('closed', () => {
+    mainWindow = null
+    overlayManager?.destroyWindow()
   })
 
   // Only ever hand https: links to the OS. `shell.openExternal` will happily
@@ -289,6 +303,11 @@ function registerIpcHandlers(): void {
       const ok = captureManager.arm(updated.captureHotkey)
       if (!ok) send('catchup:captureError', `Couldn’t register hotkey “${updated.captureHotkey}”.`)
     }
+    // The overlay hotkey is registered for the app's lifetime — rebind on
+    // change; registration state reaches the UI via the overlay:status push.
+    if ('overlayHotkey' in patch) {
+      overlayManager?.registerHotkey(updated.overlayHotkey)
+    }
     if ('launchAtStartup' in patch) applyLaunchAtStartup(updated.launchAtStartup)
     return updated
   })
@@ -347,6 +366,10 @@ function registerIpcHandlers(): void {
     captureManager?.disarm()
     return null
   })
+
+  // ── Phase 12: in-game overlay ──
+  ipcMain.handle('overlay:toggle', () => overlayManager?.toggle() ?? null)
+  ipcMain.handle('overlay:getStatus', () => overlayManager?.getStatus() ?? null)
 }
 
 app.whenReady().then(async () => {
@@ -360,6 +383,14 @@ app.whenReady().then(async () => {
   updateManager.registerIpcHandlers(() => {
     isQuitting = true
   })
+  overlayManager = new OverlayManager((status) => send('overlay:status', status))
+  {
+    // Bind the overlay toggle hotkey for the app's lifetime. Same rationale as
+    // catchup:armCapture for validating first: settings.json is a plain file on
+    // disk, and globalShortcut.register throws on a malformed accelerator.
+    const { overlayHotkey } = loadSettings()
+    if (isValidAccelerator(overlayHotkey)) overlayManager.registerHotkey(overlayHotkey)
+  }
   registerIpcHandlers()
   // Started via the Windows startup entry (see applyLaunchAtStartup) → open hidden to the tray.
   createWindow(process.argv.includes('--hidden'))

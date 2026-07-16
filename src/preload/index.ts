@@ -7,7 +7,8 @@ import type {
   QuestEventNotice,
   WatcherStatus,
   ScreenshotCapture,
-  UpdateStatus
+  UpdateStatus,
+  OverlayStatus
 } from '../shared/types'
 
 function subscribe<T>(channel: string, callback: (payload: T) => void): () => void {
@@ -60,6 +61,10 @@ const api: AppApi = {
   onProgressUpdated: (callback) => subscribe<PlayerProgress>('progress:updated', callback),
   onQuestEvents: (callback) => subscribe<QuestEventNotice[]>('log:questEvents', callback),
   onWatcherStatus: (callback) => subscribe<WatcherStatus>('watcher:status', callback),
+
+  toggleOverlay: () => ipcRenderer.invoke('overlay:toggle'),
+  getOverlayStatus: () => ipcRenderer.invoke('overlay:getStatus'),
+  onOverlayStatus: (callback) => subscribe<OverlayStatus>('overlay:status', callback),
 
   checkForUpdates: () => ipcRenderer.invoke('updates:check'),
   downloadUpdate: () => ipcRenderer.invoke('updates:download'),

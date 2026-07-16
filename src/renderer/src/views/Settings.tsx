@@ -4,7 +4,8 @@ import type {
   WatcherStatus,
   LogSession,
   HistoricalImportSummary,
-  LogProfile
+  LogProfile,
+  OverlayStatus
 } from '@shared/types'
 
 const SOURCE_LABEL: Record<WatcherStatus['installSource'], string> = {
@@ -28,6 +29,7 @@ export function Settings(): React.JSX.Element {
   const [summary, setSummary] = useState<HistoricalImportSummary | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [refreshedAt, setRefreshedAt] = useState<number | null>(null)
+  const [overlay, setOverlay] = useState<OverlayStatus | null>(null)
 
   const loadSessions = useCallback(async () => {
     const list = await window.api.listLogSessions()
@@ -39,8 +41,14 @@ export function Settings(): React.JSX.Element {
   useEffect(() => {
     window.api.getSettings().then(setSettings)
     window.api.getWatcherStatus().then(setStatus)
+    window.api.getOverlayStatus().then(setOverlay)
     loadSessions()
-    return window.api.onWatcherStatus(setStatus)
+    const offWatcher = window.api.onWatcherStatus(setStatus)
+    const offOverlay = window.api.onOverlayStatus(setOverlay)
+    return () => {
+      offWatcher()
+      offOverlay()
+    }
   }, [loadSessions])
 
   const patchSettings = useCallback(async (patch: Partial<AppSettings>) => {
@@ -217,6 +225,41 @@ export function Settings(): React.JSX.Element {
             onBlur={(e) => patchSettings({ captureHotkey: e.target.value.trim() || 'F1' })}
           />
         </label>
+      </section>
+
+      <section className="settings-block">
+        <h2>In-game overlay</h2>
+        <p className="hint">
+          A compact, always-on-top, click-through panel showing your current raid map&apos;s
+          active objectives and next Kappa targets. Toggle it with the hotkey below — it works
+          while Tarkov has focus, but <strong>requires borderless windowed mode</strong>{' '}
+          (exclusive fullscreen draws over it). The panel is read-only and never steals focus
+          from the game.
+        </p>
+        <label className="checkbox-row">
+          <span>Overlay hotkey</span>
+          <input
+            type="text"
+            className="hotkey-input"
+            value={settings.overlayHotkey}
+            onChange={(e) => setSettings({ ...settings, overlayHotkey: e.target.value })}
+            onBlur={(e) => patchSettings({ overlayHotkey: e.target.value.trim() || 'F9' })}
+          />
+        </label>
+        {overlay && !overlay.hotkeyRegistered && (
+          <p className="error">
+            Couldn&apos;t register the {overlay.hotkey || 'overlay'} hotkey — another app (or the
+            capture hotkey) may be using it. Pick a different key.
+          </p>
+        )}
+        <div className="button-row">
+          <button onClick={async () => setOverlay(await window.api.toggleOverlay())}>
+            {overlay?.visible ? 'Hide overlay' : 'Show overlay now'}
+          </button>
+          {overlay?.visible && (
+            <span className="muted">Overlay is visible (top-right of your primary screen).</span>
+          )}
+        </div>
       </section>
 
       <section className="settings-block">

@@ -10,6 +10,15 @@ import type { OcrMatch, ScreenshotCapture, TaskData } from '@shared/types'
 /** Below this, a line's top candidate is treated as noise, not worth a manual pick. */
 const AMBIGUOUS_SHOW_FLOOR = 0.4
 
+/**
+ * Which in-game task-list tab the captures came from. Active-tab quests are in
+ * progress (never marked; only their upstream prerequisites are inferred).
+ * Completed-tab quests ARE completions — they're marked directly, and upstream
+ * inference still runs on them too (a completed quest's completion-demanding
+ * prereqs must also be done).
+ */
+type CatchupMode = 'active' | 'completed'
+
 interface DetectedQuest {
   taskId: string
   taskName: string
@@ -20,6 +29,7 @@ interface DetectedQuest {
 export function QuestCatchup(): React.JSX.Element {
   const { tasks, progress, bulkCompleteTasks } = useAppData()
 
+  const [mode, setMode] = useState<CatchupMode>('active')
   const [screenshots, setScreenshots] = useState<ScreenshotCapture[]>([])
   const [capturing, setCapturing] = useState(false)
   const [captureError, setCaptureError] = useState<string | null>(null)
@@ -62,6 +72,22 @@ export function QuestCatchup(): React.JSX.Element {
 
   const removeScreenshot = useCallback((id: string) => {
     setScreenshots((prev) => prev.filter((s) => s.id !== id))
+  }, [])
+
+  // A capture is of one specific in-game tab, so switching modes discards the
+  // screenshots and any analysis — mixing tabs in one session would silently
+  // mark in-progress quests as done (or vice versa).
+  const switchMode = useCallback((next: CatchupMode) => {
+    setMode((prev) => {
+      if (prev === next) return prev
+      setScreenshots([])
+      setRows(null)
+      setExcludedDetectedIds(new Set())
+      setAmbiguousSelections({})
+      setPrereqOverrides({})
+      setAppliedCount(null)
+      return next
+    })
   }, [])
 
   // While capture mode is armed, native hotkey captures and their errors arrive
@@ -185,7 +211,7 @@ export function QuestCatchup(): React.JSX.Element {
     setAmbiguousSelections((prev) => ({ ...prev, [rowKey]: taskId }))
   }, [])
 
-  const confirmedActiveTaskIds = useMemo(() => {
+  const confirmedDetectedIds = useMemo(() => {
     const ids = detectedQuests
       .filter((d) => !excludedDetectedIds.has(d.taskId))
       .map((d) => d.taskId)
@@ -195,12 +221,23 @@ export function QuestCatchup(): React.JSX.Element {
     return [...new Set(ids)]
   }, [detectedQuests, excludedDetectedIds, ambiguousSelections])
 
+  // Both modes infer upstream the same way — the traversal never marks its
+  // seeds, so what distinguishes the modes is purely whether the detected
+  // quests themselves get marked (completed tab) or left in progress (active tab).
   const inferred = useMemo(() => {
-    if (!tasks || !progress || confirmedActiveTaskIds.length === 0) {
+    if (!tasks || !progress || confirmedDetectedIds.length === 0) {
       return { completed: [] as string[], uncertain: [] as string[] }
     }
-    return inferPrerequisiteCompletions(confirmedActiveTaskIds, tasks, progress.completedTaskIds)
-  }, [tasks, progress, confirmedActiveTaskIds])
+    return inferPrerequisiteCompletions(confirmedDetectedIds, tasks, progress.completedTaskIds)
+  }, [tasks, progress, confirmedDetectedIds])
+
+  // Completed-tab detections are completions in their own right — marked
+  // directly, minus anything already tracked as done.
+  const directMarkIds = useMemo(() => {
+    if (mode !== 'completed' || !progress) return []
+    const alreadyDone = new Set(progress.completedTaskIds)
+    return confirmedDetectedIds.filter((id) => !alreadyDone.has(id))
+  }, [mode, progress, confirmedDetectedIds])
 
   const prereqIds = useMemo(
     () => [...inferred.completed, ...inferred.uncertain],
@@ -241,17 +278,24 @@ export function QuestCatchup(): React.JSX.Element {
     [prereqIds, isPrereqChecked]
   )
 
+  // Everything the Apply button will actually write: inferred prereqs in both
+  // modes, plus the detected quests themselves on the completed tab.
+  const willMarkIds = useMemo(
+    () => [...new Set([...directMarkIds, ...includedPrereqIds])],
+    [directMarkIds, includedPrereqIds]
+  )
+
   const apply = useCallback(async () => {
     setApplying(true)
     try {
-      await bulkCompleteTasks(includedPrereqIds)
-      setAppliedCount(includedPrereqIds.length)
+      await bulkCompleteTasks(willMarkIds)
+      setAppliedCount(willMarkIds.length)
       setRows(null)
       setScreenshots([])
     } finally {
       setApplying(false)
     }
-  }, [bulkCompleteTasks, includedPrereqIds])
+  }, [bulkCompleteTasks, willMarkIds])
 
   if (!tasks || !progress) return <div className="settings">Loading…</div>
 
@@ -260,11 +304,42 @@ export function QuestCatchup(): React.JSX.Element {
       <section className="settings-block">
         <h2>Quest Catchup</h2>
         <p className="hint">
-          New setup, already mid-wipe? Capture your in-game active quest list and this will figure
-          out which quests must already be done to unlock them, then let you review and bulk-mark
-          those as completed. Your active quests themselves are left untouched — they show as
-          in-progress, not done.
+          New setup, already mid-wipe? Capture your in-game quest list and this will let you
+          review and bulk-mark completions.{' '}
+          {mode === 'active' ? (
+            <>
+              Active-tab mode infers which quests must already be done for your active quests to
+              be unlocked — the active quests themselves are left untouched (in progress, not
+              done).
+            </>
+          ) : (
+            <>
+              Completed-tab mode marks the recognized quests as completed directly, plus
+              everything upstream that must have been done first. Use it for finished side-chains
+              the active-tab inference can&apos;t see.
+            </>
+          )}
         </p>
+
+        <div className="button-row">
+          <div className="group-by-toggle" role="group" aria-label="Which in-game tab was captured">
+            <button
+              className={mode === 'active' ? 'active' : ''}
+              onClick={() => switchMode('active')}
+            >
+              Active tab
+            </button>
+            <button
+              className={mode === 'completed' ? 'active' : ''}
+              onClick={() => switchMode('completed')}
+            >
+              Completed tab
+            </button>
+          </div>
+          <span className="muted">
+            Capture the matching tab of the in-game Tasks screen. Switching clears any captures.
+          </span>
+        </div>
 
         <div className="button-row">
           <button className={captureArmed ? 'active' : ''} onClick={toggleCaptureMode}>
@@ -273,8 +348,10 @@ export function QuestCatchup(): React.JSX.Element {
           <span className="muted">
             {captureArmed ? (
               <>
-                Open the Tasks screen in-game and press <kbd>{captureHotkey}</kbd> — scroll and
-                press again for each screenful. (Requires borderless windowed mode.)
+                Open the Tasks screen in-game on the{' '}
+                {mode === 'active' ? 'active' : 'completed'} tab and press{' '}
+                <kbd>{captureHotkey}</kbd> — scroll and press again for each screenful. (Requires
+                borderless windowed mode.)
               </>
             ) : (
               <>Snaps the screen itself on a hotkey, for consistent OCR. Change the key in Settings.</>
@@ -311,12 +388,12 @@ export function QuestCatchup(): React.JSX.Element {
 
       {rows && (
         <section className="settings-block">
-          <h2>Recognized active quests</h2>
+          <h2>Recognized {mode === 'active' ? 'active' : 'completed'} quests</h2>
 
           {detectedQuests.length === 0 && ambiguousRows.length === 0 ? (
             <p className="muted">
-              No active quests recognized in the pasted screenshot(s). Try a clearer screenshot,
-              or zoom in on the quest list before capturing.
+              No quests recognized in the pasted screenshot(s). Try a clearer screenshot, or zoom
+              in on the quest list before capturing.
             </p>
           ) : (
             <>
@@ -388,13 +465,22 @@ export function QuestCatchup(): React.JSX.Element {
         </section>
       )}
 
-      {rows && confirmedActiveTaskIds.length > 0 && (
+      {rows && confirmedDetectedIds.length > 0 && (
         <section className="settings-block">
-          <h2>Will mark {includedPrereqIds.length} quest(s) completed</h2>
+          <h2>Will mark {willMarkIds.length} quest(s) completed</h2>
+          {mode === 'completed' && (
+            <p className="hint">
+              {directMarkIds.length} recognized quest(s) from the completed tab will be marked
+              directly{directMarkIds.length !== confirmedDetectedIds.length && (
+                <> (the rest are already tracked as done)</>
+              )}
+              {prereqIds.length > 0 && <>, plus the inferred prerequisites below</>}.
+            </p>
+          )}
           {prereqIds.length === 0 ? (
             <p className="muted">
-              Nothing to infer — either these quests have no prerequisites, or everything upstream
-              is already marked completed.
+              Nothing further to infer — either these quests have no prerequisites, or everything
+              upstream is already marked completed.
             </p>
           ) : (
             <>
@@ -432,8 +518,8 @@ export function QuestCatchup(): React.JSX.Element {
           )}
 
           <div className="button-row">
-            <button onClick={apply} disabled={applying || includedPrereqIds.length === 0}>
-              {applying ? 'Applying…' : `Mark ${includedPrereqIds.length} quest(s) completed`}
+            <button onClick={apply} disabled={applying || willMarkIds.length === 0}>
+              {applying ? 'Applying…' : `Mark ${willMarkIds.length} quest(s) completed`}
             </button>
           </div>
         </section>

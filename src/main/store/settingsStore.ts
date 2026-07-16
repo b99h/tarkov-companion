@@ -10,6 +10,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   importedSessions: [],
   autoWatch: true,
   captureHotkey: 'F1',
+  // F9: unbound in Tarkov's default keymap, unlike the F1–F4 quick-slot keys.
+  overlayHotkey: 'F9',
   launchAtStartup: false,
   minimizeToTray: false
 }

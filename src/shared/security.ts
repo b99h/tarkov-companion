@@ -205,6 +205,7 @@ const SETTINGS_VALIDATORS: { [K in keyof AppSettings]: (value: unknown) => boole
   importedSessions: isValidSessionNames,
   autoWatch: isBoolean,
   captureHotkey: isValidAccelerator,
+  overlayHotkey: isValidAccelerator,
   launchAtStartup: isBoolean,
   minimizeToTray: isBoolean
 }

@@ -512,10 +512,24 @@ export interface AppSettings {
    * game rebinding the default can be worked around.
    */
   captureHotkey: string
+  /**
+   * Global hotkey (accelerator syntax) that shows/hides the in-game overlay
+   * (Phase 12). Registered for the app's whole lifetime, unlike the capture
+   * hotkey which only lives while capture mode is armed.
+   */
+  overlayHotkey: string
   /** Register the app to start (hidden, via `--hidden`) when Windows logs in. */
   launchAtStartup: boolean
   /** Closing the window hides it to the tray instead of quitting the app. */
   minimizeToTray: boolean
+}
+
+/** Overlay window state, pushed whenever visibility or hotkey registration changes. */
+export interface OverlayStatus {
+  visible: boolean
+  hotkey: string
+  /** False when the OS refused the accelerator (e.g. another app owns the key). */
+  hotkeyRegistered: boolean
 }
 
 export interface WatcherStatus {
