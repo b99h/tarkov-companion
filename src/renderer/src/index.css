@@ -1977,3 +1977,164 @@ kbd {
 .update-banner button.update-banner-dismiss:hover {
   color: #e8e8e8;
 }
+
+/* ── Phase 8: Hideout view ─────────────────────────────────────────────── */
+
+.hideout-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.hideout-toolbar .toggle-row {
+  margin-bottom: 0;
+}
+
+.hideout-progress {
+  font-weight: 600;
+  color: #cfd3a8;
+}
+
+.small-button {
+  background: #26272e;
+  color: #e8e8e8;
+  border: 1px solid #34353d;
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.small-button:hover:not(:disabled) {
+  background: #34353d;
+}
+
+.small-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.small-button.danger {
+  background: #4a2323;
+  color: #f0b8b8;
+  border-color: #6b2f2f;
+}
+
+.station-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.station-card {
+  background: #1d1e24;
+  border: 1px solid #2c2d35;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.station-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.station-card-header h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.station-image {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.station-level-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.station-level {
+  min-width: 44px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.station-maxed {
+  color: #7fd396;
+  font-weight: 600;
+  margin: 10px 0 0;
+}
+
+.station-next {
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.station-next-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.station-ready {
+  color: #7fd396;
+  font-size: 12px;
+}
+
+.station-blocked {
+  color: #e0a95f;
+  font-size: 12px;
+}
+
+.station-reqs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.station-reqs li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.station-reqs .req-met {
+  color: #7fd396;
+}
+
+.station-reqs .req-unmet {
+  color: #e0857f;
+}
+
+.req-price {
+  font-size: 11px;
+}
+
+.hoard-needs {
+  font-size: 12px;
+}
+
+.hideout-warn {
+  color: #9db4dd;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.craft-locked-note {
+  display: inline-block;
+  color: #888;
+  font-size: 11px;
+  margin-left: 8px;
+}

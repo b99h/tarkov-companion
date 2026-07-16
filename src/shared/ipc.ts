@@ -6,6 +6,7 @@ import type {
   MapFeatureData,
   CraftData,
   AmmoData,
+  HideoutStationData,
   PlayerProgress,
   Faction,
   AppSettings,
@@ -39,12 +40,16 @@ export interface AppApi {
   getCrafts: () => Promise<CraftData[]>
   /** Ballistic stats for every round, for the Ammo reference chart (Phase 4.7.1). */
   getAmmo: () => Promise<AmmoData[]>
+  /** Hideout station catalog (levels + requirements), for the Hideout view (Phase 8). */
+  getHideoutStations: () => Promise<HideoutStationData[]>
   getProgress: () => Promise<PlayerProgress>
   setTaskCompleted: (taskId: string, completed: boolean) => Promise<PlayerProgress>
   /** Bulk-completes many tasks in one write, for the Quest Catchup flow. */
   setTasksCompleted: (taskIds: string[]) => Promise<PlayerProgress>
   setPlayerLevel: (level: number) => Promise<PlayerProgress>
   setFaction: (faction: Faction) => Promise<PlayerProgress>
+  /** Sets one hideout station's built level (0 = unbuilt), keyed by normalizedName. */
+  setStationLevel: (stationNorm: string, level: number) => Promise<PlayerProgress>
   resetProgress: () => Promise<PlayerProgress>
   /**
    * Reads an image off the OS clipboard and OCRs it in main. Returns null

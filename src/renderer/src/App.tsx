@@ -3,6 +3,7 @@ import { AppDataProvider } from './state/AppDataContext'
 import { QuestBoard } from './views/QuestBoard'
 import { KappaPlanner } from './views/KappaPlanner'
 import { FleaSidebar } from './views/FleaSidebar'
+import { Hideout } from './views/Hideout'
 import { AmmoChart } from './views/AmmoChart'
 import { MapView } from './views/MapView'
 import { ProfileBar } from './views/ProfileBar'
@@ -12,7 +13,7 @@ import { Toasts } from './views/Toasts'
 import { UpdateBanner } from './views/UpdateBanner'
 import { ErrorBoundary } from './views/ErrorBoundary'
 
-type View = 'quests' | 'kappa' | 'flea' | 'ammo' | 'maps' | 'settings' | 'catchup'
+type View = 'quests' | 'kappa' | 'flea' | 'hideout' | 'ammo' | 'maps' | 'settings' | 'catchup'
 
 function App(): React.JSX.Element {
   const [version, setVersion] = useState('')
@@ -39,6 +40,12 @@ function App(): React.JSX.Element {
           </button>
           <button className={view === 'flea' ? 'active' : ''} onClick={() => setView('flea')}>
             Flea &amp; Crafts
+          </button>
+          <button
+            className={view === 'hideout' ? 'active' : ''}
+            onClick={() => setView('hideout')}
+          >
+            Hideout
           </button>
           <button className={view === 'ammo' ? 'active' : ''} onClick={() => setView('ammo')}>
             Ammo
@@ -67,6 +74,7 @@ function App(): React.JSX.Element {
             {view === 'quests' && <QuestBoard />}
             {view === 'kappa' && <KappaPlanner />}
             {view === 'flea' && <FleaSidebar />}
+            {view === 'hideout' && <Hideout />}
             {view === 'ammo' && <AmmoChart />}
             {view === 'maps' && <MapView />}
             {view === 'settings' && <Settings />}

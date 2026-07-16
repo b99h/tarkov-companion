@@ -74,7 +74,8 @@ const progress: PlayerProgress = {
   completedTaskIds: ['A'],
   failedTaskIds: [],
   playerLevel: 5,
-  faction: 'Bear'
+  faction: 'Bear',
+  stationLevels: {}
 }
 
 describe('deriveTaskStates', () => {
@@ -124,7 +125,8 @@ describe('deriveTaskStates', () => {
       completedTaskIds: [],
       failedTaskIds: ['P'],
       playerLevel: 5,
-      faction: 'Bear'
+      faction: 'Bear',
+      stationLevels: {}
     }
     const states = deriveTaskStates(withFailable, failedProgress)
     expect(states.find((t) => t.id === 'Q')?.status).toBe('available')
@@ -144,7 +146,8 @@ describe('deriveTaskStates', () => {
       completedTaskIds: [],
       failedTaskIds: [],
       playerLevel: 5,
-      faction: 'Bear'
+      faction: 'Bear',
+      stationLevels: {}
     })
     const q = states.find((t) => t.id === 'Q')
     expect(q?.status).toBe('locked')
@@ -167,7 +170,8 @@ describe('deriveTaskStates', () => {
       completedTaskIds: [],
       failedTaskIds: [],
       playerLevel: 5,
-      faction: 'Bear'
+      faction: 'Bear',
+      stationLevels: {}
     })
     expect(states.find((t) => t.id === 'R2')?.status).toBe('available')
   })

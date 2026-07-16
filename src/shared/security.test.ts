@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   clampPlayerLevel,
+  clampStationLevel,
   isAllowedFetchUrl,
   isExternallyOpenable,
   isFaction,
@@ -159,6 +160,23 @@ describe('clampPlayerLevel', () => {
     expect(clampPlayerLevel(NaN)).toBe(1)
     expect(clampPlayerLevel('nonsense')).toBe(1)
     expect(clampPlayerLevel(null)).toBe(1)
+  })
+})
+
+describe('clampStationLevel', () => {
+  it('keeps sane levels, rounds, and allows 0 (unbuilt)', () => {
+    expect(clampStationLevel(3)).toBe(3)
+    expect(clampStationLevel(2.4)).toBe(2)
+    expect(clampStationLevel(0)).toBe(0)
+  })
+
+  it('clamps out-of-range and coerces junk to 0', () => {
+    expect(clampStationLevel(-1)).toBe(0)
+    expect(clampStationLevel(9999)).toBe(10)
+    expect(clampStationLevel(Infinity)).toBe(10)
+    expect(clampStationLevel(NaN)).toBe(0)
+    expect(clampStationLevel('nonsense')).toBe(0)
+    expect(clampStationLevel(null)).toBe(0)
   })
 })
 

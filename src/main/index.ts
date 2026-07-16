@@ -12,6 +12,7 @@ import {
   getQuestWikiImages,
   getCrafts,
   getAmmo,
+  getHideoutStations,
   startPriceRefreshLoop,
   refreshPrices
 } from './data'
@@ -21,6 +22,7 @@ import {
   setTasksCompleted,
   setPlayerLevel,
   setFaction,
+  setStationLevel,
   resetProgress
 } from './store/progressStore'
 import { loadSettings, updateSettings } from './store/settingsStore'
@@ -31,6 +33,7 @@ import { captureAndOcrClipboard, terminateOcrWorker } from './ocr/questOcr'
 import { CaptureManager } from './ocr/screenCapture'
 import {
   clampPlayerLevel,
+  clampStationLevel,
   isAllowedFetchUrl,
   isExternallyOpenable,
   isFaction,
@@ -209,6 +212,7 @@ function registerIpcHandlers(): void {
   })
   ipcMain.handle('data:getCrafts', () => getCrafts(loadSettings().profile))
   ipcMain.handle('data:getAmmo', () => getAmmo())
+  ipcMain.handle('data:getHideoutStations', () => getHideoutStations())
   ipcMain.handle('data:refreshPricesNow', () =>
     refreshPrices(loadSettings().profile, {
       onItems: (items) => send('data:pricesUpdated', items),
@@ -235,6 +239,13 @@ function registerIpcHandlers(): void {
   ipcMain.handle('progress:setFaction', (_e, faction: unknown) => {
     if (!isFaction(faction)) throw new Error('setFaction: invalid faction')
     return setFaction(faction)
+  })
+  ipcMain.handle('progress:setStationLevel', (_e, stationNorm: unknown, level: unknown) => {
+    // Station keys share the normalized-name grammar used for cache keys.
+    if (!isValidNormalizedName(stationNorm)) {
+      throw new Error('setStationLevel: invalid station name')
+    }
+    return setStationLevel(stationNorm, clampStationLevel(level))
   })
   ipcMain.handle('progress:reset', () => {
     // A wipe also clears log checkpoints and import history so past logs can be

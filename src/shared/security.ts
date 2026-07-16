@@ -165,6 +165,20 @@ export function clampPlayerLevel(level: unknown): number {
   return Math.min(MAX_PLAYER_LEVEL, Math.max(1, Math.round(n)))
 }
 
+/**
+ * Ceiling for hideout station levels (Phase 8). No live station exceeds 4
+ * today (Stash); 10 leaves headroom for future stations without letting a
+ * hostile renderer write absurd numbers into progress.json.
+ */
+export const MAX_STATION_LEVEL = 10
+
+/** Coerce a renderer-supplied station level into an integer within 0–10. */
+export function clampStationLevel(level: unknown): number {
+  const n = typeof level === 'number' ? level : Number(level)
+  if (Number.isNaN(n)) return 0
+  return Math.min(MAX_STATION_LEVEL, Math.max(0, Math.round(n)))
+}
+
 const FACTIONS: readonly Faction[] = ['Any', 'Usec', 'Bear']
 
 export function isFaction(value: unknown): value is Faction {

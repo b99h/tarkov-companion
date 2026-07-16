@@ -30,7 +30,8 @@ const progress: PlayerProgress = {
   completedTaskIds: ['quest-done'],
   failedTaskIds: [],
   playerLevel: 20,
-  faction: 'Usec'
+  faction: 'Usec',
+  stationLevels: {}
 }
 
 describe('evaluateCraft', () => {

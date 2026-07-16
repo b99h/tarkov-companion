@@ -30,12 +30,15 @@ const api: AppApi = {
   getQuestWikiImages: (taskId) => ipcRenderer.invoke('data:getQuestWikiImages', taskId),
   getCrafts: () => ipcRenderer.invoke('data:getCrafts'),
   getAmmo: () => ipcRenderer.invoke('data:getAmmo'),
+  getHideoutStations: () => ipcRenderer.invoke('data:getHideoutStations'),
   getProgress: () => ipcRenderer.invoke('progress:get'),
   setTaskCompleted: (taskId, completed) =>
     ipcRenderer.invoke('progress:setTaskCompleted', taskId, completed),
   setTasksCompleted: (taskIds) => ipcRenderer.invoke('progress:setTasksCompleted', taskIds),
   setPlayerLevel: (level) => ipcRenderer.invoke('progress:setPlayerLevel', level),
   setFaction: (faction) => ipcRenderer.invoke('progress:setFaction', faction),
+  setStationLevel: (stationNorm, level) =>
+    ipcRenderer.invoke('progress:setStationLevel', stationNorm, level),
   resetProgress: () => ipcRenderer.invoke('progress:reset'),
   captureAndOcrClipboard: () => ipcRenderer.invoke('ocr:captureClipboard'),
   armCapture: () => ipcRenderer.invoke('catchup:armCapture'),

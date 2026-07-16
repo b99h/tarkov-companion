@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { ReactNode } from 'react'
 import { neededQuestItems } from '@shared/questEngine'
 import { scoreCrafts } from '@shared/craftEngine'
-import type { ItemData, CraftData } from '@shared/types'
+import { anyStationConfigured, canRunCraft, neededHideoutItems } from '@shared/hideoutEngine'
+import type { HideoutHoardEntry } from '@shared/hideoutEngine'
+import type { ItemData, CraftData, HideoutStationData } from '@shared/types'
 import { useAppData } from '../state/AppDataContext'
 import { usePersistedState } from '../state/usePersistedState'
+import { CollapsibleSection } from './CollapsibleSection'
 
 const TOP_ITEMS_PER_CATEGORY = 15
 const TOP_CRAFTS = 15
@@ -59,37 +61,14 @@ function TrendArrow({ percent }: { percent: number | null }): React.JSX.Element 
   )
 }
 
-function CollapsibleSection({
-  title,
-  count,
-  collapsed,
-  onToggle,
-  children
-}: {
-  title: string
-  count?: number
-  collapsed: boolean
-  onToggle: () => void
-  children: ReactNode
-}): React.JSX.Element {
-  return (
-    <section className="collapsible-section">
-      <h2 className="group-header" onClick={onToggle}>
-        <span className={`caret${collapsed ? ' collapsed' : ''}`}>▾</span>
-        {title}
-        {count !== undefined && <span className="group-count">{count}</span>}
-      </h2>
-      {!collapsed && children}
-    </section>
-  )
-}
-
 function ItemTable({
   items,
-  questItems
+  questItems,
+  hideoutItems
 }: {
   items: ItemData[]
   questItems: Map<string, string[]>
+  hideoutItems: Map<string, HideoutHoardEntry>
 }): React.JSX.Element {
   return (
     <table className="flea-table">
@@ -108,6 +87,7 @@ function ItemTable({
           const beatsFlea =
             item.bestVendorSellRUB !== null && flea !== null && item.bestVendorSellRUB > flea
           const neededBy = questItems.get(item.id)
+          const hideoutNeed = hideoutItems.get(item.id)
           return (
             <tr key={item.id}>
               <td className="flea-item-cell">
@@ -130,6 +110,16 @@ function ItemTable({
                     ⚠ quest
                   </span>
                 )}
+                {hideoutNeed && (
+                  <span
+                    className="hideout-warn"
+                    title={`Needed for: ${hideoutNeed.needs
+                      .map((n) => `${n.station} ${n.level} ×${n.count}`)
+                      .join(', ')}`}
+                  >
+                    🔨 hideout ×{hideoutNeed.totalCount}
+                  </span>
+                )}
               </td>
             </tr>
           )
@@ -144,10 +134,16 @@ export function FleaSidebar(): React.JSX.Element {
 
   const [items, setItems] = useState<ItemData[] | null>(null)
   const [crafts, setCrafts] = useState<CraftData[] | null>(null)
+  const [stations, setStations] = useState<HideoutStationData[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const [search, setSearch] = useState('')
   const [hideQuestItems, setHideQuestItems] = useState(false)
+  const [hideHideoutItems, setHideHideoutItems] = useState(false)
+  const [hideoutCraftsOnly, setHideoutCraftsOnly] = usePersistedState(
+    'flea.crafts.hideoutOnly',
+    false
+  )
 
   const [sectionsCollapsed, setSectionsCollapsed] = usePersistedState<Record<string, boolean>>(
     'flea.sections.collapsed',
@@ -159,11 +155,12 @@ export function FleaSidebar(): React.JSX.Element {
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([window.api.getItems(), window.api.getCrafts()])
-      .then(([i, c]) => {
+    Promise.all([window.api.getItems(), window.api.getCrafts(), window.api.getHideoutStations()])
+      .then(([i, c, s]) => {
         if (cancelled) return
         setItems(i)
         setCrafts(c)
+        setStations(s)
       })
       .catch((err) => !cancelled && setError(err instanceof Error ? err.message : String(err)))
     return () => {
@@ -181,6 +178,19 @@ export function FleaSidebar(): React.JSX.Element {
     [tasks, progress]
   )
 
+  const stationLevels = progress?.stationLevels ?? {}
+  const hideoutConfigured = anyStationConfigured(stationLevels)
+
+  // Item id → hideout upgrade demand (Phase 8.3): only unbuilt levels count, so
+  // once a station is recorded as built, its inputs stop flagging here.
+  const hideoutItems = useMemo(
+    () =>
+      stations && progress
+        ? neededHideoutItems(stations, progress.stationLevels)
+        : new Map<string, HideoutHoardEntry>(),
+    [stations, progress]
+  )
+
   const query = search.trim().toLowerCase()
 
   const categorized = useMemo(() => {
@@ -190,6 +200,7 @@ export function FleaSidebar(): React.JSX.Element {
     for (const item of items) {
       if (item.flaggedNoFlea || fleaValue(item) === null) continue
       if (!query && hideQuestItems && questItems.has(item.id)) continue
+      if (!query && hideHideoutItems && hideoutItems.has(item.id)) continue
       if (query) {
         const hit =
           item.name.toLowerCase().includes(query) || item.shortName.toLowerCase().includes(query)
@@ -207,12 +218,18 @@ export function FleaSidebar(): React.JSX.Element {
     }
 
     return buckets
-  }, [items, query, hideQuestItems, questItems])
+  }, [items, query, hideQuestItems, questItems, hideHideoutItems, hideoutItems])
 
-  const topCrafts = useMemo(
-    () => (crafts && progress ? scoreCrafts(crafts, progress, { limit: TOP_CRAFTS }) : []),
-    [crafts, progress]
-  )
+  // Hideout-aware craft gating (Phase 8.3): only meaningful once the user has
+  // recorded any station level — a fresh install keeps the maxed-hideout view.
+  const filterByHideout = hideoutConfigured && hideoutCraftsOnly
+  const topCrafts = useMemo(() => {
+    if (!crafts || !progress) return []
+    const pool = filterByHideout
+      ? crafts.filter((c) => canRunCraft(c, progress.stationLevels))
+      : crafts
+    return scoreCrafts(pool, progress, { limit: TOP_CRAFTS })
+  }, [crafts, progress, filterByHideout])
 
   function toggleSection(key: string): void {
     setSectionsCollapsed({ ...sectionsCollapsed, [key]: !sectionsCollapsed[key] })
@@ -223,7 +240,7 @@ export function FleaSidebar(): React.JSX.Element {
   }
 
   if (error) return <p className="error">Failed to load flea data: {error}</p>
-  if (!items || !crafts) return <p>Loading flea &amp; craft data…</p>
+  if (!items || !crafts || !stations) return <p>Loading flea &amp; craft data…</p>
 
   return (
     <div className="flea-view">
@@ -255,6 +272,16 @@ export function FleaSidebar(): React.JSX.Element {
               Hide quest-needed items
             </label>
           )}
+          {!query && hideoutItems.size > 0 && (
+            <label className="toggle-row">
+              <input
+                type="checkbox"
+                checked={hideHideoutItems}
+                onChange={(e) => setHideHideoutItems(e.target.checked)}
+              />
+              Hide hideout-needed items
+            </label>
+          )}
         </div>
 
         {CATEGORY_ORDER.map((category) => {
@@ -282,7 +309,11 @@ export function FleaSidebar(): React.JSX.Element {
                         full-use key sells for more.
                       </p>
                     )}
-                    <ItemTable items={categoryItems} questItems={questItems} />
+                    <ItemTable
+                      items={categoryItems}
+                      questItems={questItems}
+                      hideoutItems={hideoutItems}
+                    />
                   </>
                 ))}
             </div>
@@ -296,9 +327,25 @@ export function FleaSidebar(): React.JSX.Element {
         onToggle={() => toggleSection('crafts')}
       >
         <p className="hint">
-          Assumes a fully-upgraded hideout. Only shows quest-locked recipes you&apos;ve unlocked.
-          Ranked by profit per hour; generator fuel is not included.
+          {hideoutConfigured
+            ? filterByHideout
+              ? 'Filtered to crafts your recorded station levels can run.'
+              : 'Crafts your recorded station levels can’t run yet are marked.'
+            : 'Assumes a fully-upgraded hideout — record station levels in the Hideout view to filter.'}{' '}
+          Only shows quest-locked recipes you&apos;ve unlocked. Ranked by profit per hour;
+          generator fuel is not included.
         </p>
+
+        {hideoutConfigured && (
+          <label className="toggle-row">
+            <input
+              type="checkbox"
+              checked={hideoutCraftsOnly}
+              onChange={(e) => setHideoutCraftsOnly(e.target.checked)}
+            />
+            Only show crafts my hideout can run
+          </label>
+        )}
 
         {topCrafts.length === 0 ? (
           <p className="muted">No priced crafts available yet.</p>
@@ -326,7 +373,14 @@ export function FleaSidebar(): React.JSX.Element {
                       </span>
                     )}
                   </td>
-                  <td className="muted">{c.craft.station}</td>
+                  <td className="muted">
+                    {c.craft.station} {c.craft.level}
+                    {hideoutConfigured &&
+                      !filterByHideout &&
+                      !canRunCraft(c.craft, progress?.stationLevels ?? {}) && (
+                        <span className="craft-locked-note">not built yet</span>
+                      )}
+                  </td>
                   <td className="num muted">{formatDuration(c.craft.durationSeconds)}</td>
                   <td className="num">{formatRUB(c.costRUB)}</td>
                   <td className="num">{formatRUB(c.revenueRUB)}</td>

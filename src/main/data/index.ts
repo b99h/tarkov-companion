@@ -7,10 +7,19 @@ import type {
   MapFeatureData,
   LogProfile,
   QuestWikiImages,
-  AmmoData
+  AmmoData,
+  HideoutStationData
 } from '../../shared/types'
 import type { GameMode } from './tarkovApi'
-import { fetchTasks, fetchItems, fetchMaps, fetchCrafts, fetchMapFeatures, fetchAmmo } from './tarkovApi'
+import {
+  fetchTasks,
+  fetchItems,
+  fetchMaps,
+  fetchCrafts,
+  fetchMapFeatures,
+  fetchAmmo,
+  fetchHideoutStations
+} from './tarkovApi'
 import { fetchMapProjections, fetchMapSvgText, fetchStaticImageDataUrl } from './mapProjections'
 import { fetchQuestWikiImages } from './wikiImages'
 import { readCache, writeCache, isStale } from './cache'
@@ -128,6 +137,16 @@ const MAP_FEATURES_CACHE_KEY = 'mapFeatures_v5'
 
 export function getMapFeatures(): Promise<MapFeatureData[]> {
   return getOrRefresh(MAP_FEATURES_CACHE_KEY, MAP_FEATURES_TTL_MS, fetchMapFeatures)
+}
+
+// Station structure changes only on patches and carries no prices (the
+// renderer joins ItemData for those), so a single mode-agnostic day-long key
+// is enough — see the hideout query note in tarkovApi.ts.
+const HIDEOUT_CACHE_KEY = 'hideoutStations_v1'
+const HIDEOUT_TTL_MS = 24 * 60 * 60 * 1000
+
+export function getHideoutStations(): Promise<HideoutStationData[]> {
+  return getOrRefresh(HIDEOUT_CACHE_KEY, HIDEOUT_TTL_MS, fetchHideoutStations)
 }
 
 /** Raw SVG markup for one map's inline overlay, cached per map (rarely changes). */

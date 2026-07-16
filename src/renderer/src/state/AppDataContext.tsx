@@ -11,6 +11,8 @@ interface AppDataValue {
   bulkCompleteTasks: (taskIds: string[]) => Promise<void>
   updatePlayerLevel: (level: number) => Promise<void>
   updateFaction: (faction: Faction) => Promise<void>
+  /** Records one hideout station's built level (Phase 8), keyed by normalizedName. */
+  updateStationLevel: (stationNorm: string, level: number) => Promise<void>
   reset: () => Promise<void>
 }
 
@@ -67,6 +69,11 @@ export function AppDataProvider({ children }: { children: ReactNode }): React.JS
     setProgress(updated)
   }, [])
 
+  const updateStationLevel = useCallback(async (stationNorm: string, level: number) => {
+    const updated = await window.api.setStationLevel(stationNorm, level)
+    setProgress(updated)
+  }, [])
+
   const reset = useCallback(async () => {
     const updated = await window.api.resetProgress()
     setProgress(updated)
@@ -83,6 +90,7 @@ export function AppDataProvider({ children }: { children: ReactNode }): React.JS
         bulkCompleteTasks,
         updatePlayerLevel,
         updateFaction,
+        updateStationLevel,
         reset
       }}
     >

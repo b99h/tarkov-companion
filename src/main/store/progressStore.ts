@@ -7,7 +7,8 @@ const DEFAULT_PROGRESS: PlayerProgress = {
   completedTaskIds: [],
   failedTaskIds: [],
   playerLevel: 1,
-  faction: 'Bear'
+  faction: 'Bear',
+  stationLevels: {}
 }
 
 function progressFile(): string {
@@ -65,6 +66,21 @@ export function setPlayerLevel(level: number): PlayerProgress {
 
 export function setFaction(faction: PlayerProgress['faction']): PlayerProgress {
   const updated = { ...loadProgress(), faction }
+  saveProgress(updated)
+  return updated
+}
+
+/**
+ * Sets one hideout station's built level (Phase 8). Level 0 removes the key so
+ * progress.json only records stations the user has actually built. Keys are
+ * station normalizedNames — see `PlayerProgress.stationLevels`.
+ */
+export function setStationLevel(stationNorm: string, level: number): PlayerProgress {
+  const progress = loadProgress()
+  const stationLevels = { ...progress.stationLevels }
+  if (level <= 0) delete stationLevels[stationNorm]
+  else stationLevels[stationNorm] = level
+  const updated = { ...progress, stationLevels }
   saveProgress(updated)
   return updated
 }

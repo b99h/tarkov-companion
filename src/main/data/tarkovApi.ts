@@ -8,7 +8,8 @@ import type {
   MapFeatureData,
   MapExtractType,
   MapBossSpawnData,
-  AmmoData
+  AmmoData,
+  HideoutStationData
 } from '../../shared/types'
 
 const ENDPOINT = 'https://api.tarkov.dev/graphql'
@@ -370,6 +371,86 @@ export async function fetchCrafts(mode: GameMode = 'regular'): Promise<CraftData
     taskUnlock: c.taskUnlock,
     requiredItems: c.requiredItems.map(mapCraftItem),
     rewardItems: c.rewardItems.map(mapCraftItem)
+  }))
+}
+
+// ── Phase 8: hideout stations ───────────────────────────────────────────────
+// Validated live 2026-07-16: 26 stations / 68 levels; itemRequirements on 64
+// levels, stationLevelRequirements on 60, traderRequirements on 23 (`value` is
+// the required loyalty level), skillRequirements on 9. Station structure is
+// static and carries NO prices — the renderer joins `ItemData` (already
+// game-mode-correct) by item id — so one mode-agnostic cache key suffices.
+const HIDEOUT_QUERY = `{
+  hideoutStations(lang: en) {
+    id
+    name
+    normalizedName
+    imageLink
+    levels {
+      level
+      constructionTime
+      itemRequirements { count item { id name iconLink } }
+      stationLevelRequirements { level station { id name normalizedName } }
+      traderRequirements { value trader { name } }
+      skillRequirements { name level }
+      crafts { id }
+    }
+  }
+}`
+
+interface RawHideoutLevel {
+  level: number
+  constructionTime: number
+  itemRequirements: { count: number; item: { id: string; name: string; iconLink: string | null } }[]
+  stationLevelRequirements: {
+    level: number
+    station: { id: string; name: string; normalizedName: string }
+  }[]
+  traderRequirements: { value: number; trader: { name: string } }[]
+  skillRequirements: { name: string; level: number }[]
+  crafts: { id: string }[]
+}
+
+interface RawHideoutStation {
+  id: string
+  name: string
+  normalizedName: string
+  imageLink: string | null
+  levels: RawHideoutLevel[]
+}
+
+export async function fetchHideoutStations(): Promise<HideoutStationData[]> {
+  const data = await graphql<{ hideoutStations: RawHideoutStation[] }>(HIDEOUT_QUERY)
+
+  return data.hideoutStations.map((s) => ({
+    id: s.id,
+    name: s.name,
+    normalizedName: s.normalizedName,
+    imageLink: s.imageLink,
+    levels: [...s.levels]
+      .sort((a, b) => a.level - b.level)
+      .map((l) => ({
+        level: l.level,
+        constructionTimeSeconds: l.constructionTime,
+        itemRequirements: l.itemRequirements.map((r) => ({
+          itemId: r.item.id,
+          name: r.item.name,
+          iconLink: r.item.iconLink,
+          count: r.count
+        })),
+        stationLevelRequirements: l.stationLevelRequirements.map((r) => ({
+          stationId: r.station.id,
+          name: r.station.name,
+          normalizedName: r.station.normalizedName,
+          level: r.level
+        })),
+        traderRequirements: l.traderRequirements.map((r) => ({
+          name: r.trader.name,
+          loyaltyLevel: r.value
+        })),
+        skillRequirements: l.skillRequirements,
+        craftIds: l.crafts.map((c) => c.id)
+      }))
   }))
 }
 

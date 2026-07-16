@@ -191,6 +191,64 @@ export interface CraftData {
   rewardItems: CraftItemRef[]
 }
 
+// ── Phase 8: hideout tracking ───────────────────────────────────────────────
+
+/**
+ * One item needed to build a hideout station level. Prices are deliberately
+ * not embedded — station structure is static while prices are game-mode
+ * scoped, so the renderer joins against `ItemData` (already mode-correct)
+ * by `itemId` instead.
+ */
+export interface HideoutItemRequirement {
+  itemId: string
+  name: string
+  iconLink: string | null
+  count: number
+}
+
+/** A "station X must be level N first" prerequisite edge. */
+export interface HideoutStationRequirement {
+  stationId: string
+  name: string
+  normalizedName: string
+  level: number
+}
+
+export interface HideoutTraderRequirement {
+  name: string
+  /** Required loyalty level with this trader. */
+  loyaltyLevel: number
+}
+
+export interface HideoutSkillRequirement {
+  name: string
+  level: number
+}
+
+/** One buildable level of a hideout station, with everything it costs. */
+export interface HideoutLevelData {
+  level: number
+  constructionTimeSeconds: number
+  itemRequirements: HideoutItemRequirement[]
+  stationLevelRequirements: HideoutStationRequirement[]
+  /** Displayed, not gated on — trader loyalty isn't tracked by the app. */
+  traderRequirements: HideoutTraderRequirement[]
+  /** Displayed, not gated on — skill levels aren't tracked by the app. */
+  skillRequirements: HideoutSkillRequirement[]
+  /** Craft recipe ids unlocked at this level (joins `CraftData.id`). */
+  craftIds: string[]
+}
+
+export interface HideoutStationData {
+  id: string
+  name: string
+  /** Matches `CraftData.stationNormalized` and keys `PlayerProgress.stationLevels`. */
+  normalizedName: string
+  imageLink: string | null
+  /** Buildable levels in ascending order. */
+  levels: HideoutLevelData[]
+}
+
 export interface MapZoneData {
   id: string
   name: string
@@ -369,6 +427,14 @@ export interface PlayerProgress {
   failedTaskIds: string[]
   playerLevel: number
   faction: Faction
+  /**
+   * Built hideout station levels, keyed by station `normalizedName` (matches
+   * `CraftData.stationNormalized` for craft gating); a missing key means
+   * unbuilt (level 0). Manual input — hideout builds never appear in the game
+   * logs. Cleared by a wipe reset (the hideout resets on wipe), unlike map
+   * notes/markers which deliberately survive.
+   */
+  stationLevels: Record<string, number>
 }
 
 export interface TaskWithStatus extends TaskData {
