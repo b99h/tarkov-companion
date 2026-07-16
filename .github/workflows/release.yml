@@ -40,3 +40,13 @@ jobs:
         run: npx electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # electron-builder publishes a DRAFT release (its default, and the only
+      # mode that survives its nsis+portable publishers racing — publishing
+      # directly with releaseType "release" was observed to lose most assets,
+      # including latest.yml). Flip the finished draft live as the last step;
+      # electron-updater only sees published releases.
+      - name: Publish release (undraft)
+        run: gh release edit ${{ github.ref_name }} --repo ${{ github.repository }} --draft=false
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

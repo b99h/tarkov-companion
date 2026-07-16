@@ -62,8 +62,7 @@
     "publish": {
       "provider": "github",
       "owner": "b99h",
-      "repo": "tarkov-companion",
-      "releaseType": "release"
+      "repo": "tarkov-companion"
     },
     "win": {
       "target": [
