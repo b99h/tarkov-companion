@@ -1,6 +1,6 @@
 {
   "name": "tarkov-companion",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Escape From Tarkov quest/Kappa companion app",
   "author": "b99h",
   "main": "./out/main/index.js",
@@ -72,8 +72,7 @@
       "icon": "build/icon.ico"
     },
     "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
+      "oneClick": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     },

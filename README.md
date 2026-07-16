@@ -58,7 +58,7 @@ Grab the latest build from the [Releases](../../releases) page. Two options:
 
 | Download | Use when |
 | --- | --- |
-| `Tarkov Companion Setup <version>.exe` | **Recommended.** Normal installer — Start Menu and desktop shortcuts, and it can update itself in-app. |
+| `Tarkov Companion Setup <version>.exe` | **Recommended.** One-click installer (per-user, no admin needed) — Start Menu and desktop shortcuts, and it updates itself in-app. |
 | `Tarkov Companion-<version>-portable.exe` | You want a single file with no install. Cannot self-update — you'll be pointed at the download instead. |
 
 ### "Windows protected your PC"
