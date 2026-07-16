@@ -108,7 +108,9 @@ export class UpdateManager {
       // Let the caller flip its "really quitting" flag first, or the
       // minimize-to-tray close handler would swallow the updater's quit.
       onBeforeInstall()
-      autoUpdater.quitAndInstall()
+      // Silent install + relaunch: without isSilent the assisted (oneClick:
+      // false) NSIS installer would pop its full wizard mid-update.
+      autoUpdater.quitAndInstall(true, true)
     })
   }
 }
