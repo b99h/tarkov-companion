@@ -14,7 +14,8 @@ import type {
   HistoricalImportSummary,
   QuestEventNotice,
   ScreenshotCapture,
-  QuestWikiImages
+  QuestWikiImages,
+  UpdateStatus
 } from './types'
 
 export interface AppApi {
@@ -82,6 +83,16 @@ export interface AppApi {
   onQuestEvents: (callback: (notices: QuestEventNotice[]) => void) => () => void
   /** Watcher status changes (install found, session switched, raid map, etc.). */
   onWatcherStatus: (callback: (status: WatcherStatus) => void) => () => void
+
+  // ── Phase 7.3: in-app updates ──
+  /** Ask main to check GitHub Releases for a newer version right now. */
+  checkForUpdates: () => Promise<void>
+  /** Start downloading an available update (progress arrives via onUpdateStatus). */
+  downloadUpdate: () => Promise<void>
+  /** Quit and install a downloaded update. No-op unless state is 'ready'. */
+  installUpdate: () => Promise<void>
+  /** Updater state changes (available / downloading / ready / error). */
+  onUpdateStatus: (callback: (status: UpdateStatus) => void) => () => void
 }
 
 declare global {

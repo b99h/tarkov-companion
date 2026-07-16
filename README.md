@@ -79,7 +79,9 @@ that on faith, build it from source — the instructions are below and the sourc
   uploaded anywhere.
 - **Network access** is limited to fetching public game data and prices from
   [tarkov.dev](https://tarkov.dev)'s API (no key, no identifying information), map art,
-  and wiki images — enforced by an HTTPS host allowlist in the main process.
+  wiki images — enforced by an HTTPS host allowlist in the main process — and update
+  checks against this repo's GitHub Releases. Updates only download and install when
+  you click the in-app prompt.
 - **No competitive advantage.** Everything shown is public data plus your own quest
   history. Nothing here reads the raid you're in.
 

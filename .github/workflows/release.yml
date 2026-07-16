@@ -1,0 +1,42 @@
+# Builds the Windows installer + portable exe and publishes them (with
+# latest.yml, which the in-app updater consumes) to a GitHub Release whenever a
+# version tag is pushed. Release flow: bump package.json version → commit →
+# `git tag vX.Y.Z` → push the tag. CI holds the token; nothing secret lives on
+# the dev machine or in the app.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Package and publish to GitHub Releases
+        run: npx electron-builder --win --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

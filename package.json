@@ -2,6 +2,7 @@
   "name": "tarkov-companion",
   "version": "1.0.0",
   "description": "Escape From Tarkov quest/Kappa companion app",
+  "author": "b99h",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -37,6 +38,7 @@
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
+    "electron-updater": "^6.8.9",
     "leaflet": "^1.9.4",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
@@ -57,6 +59,11 @@
         "to": "."
       }
     ],
+    "publish": {
+      "provider": "github",
+      "owner": "b99h",
+      "repo": "tarkov-companion"
+    },
     "win": {
       "target": [
         "nsis",

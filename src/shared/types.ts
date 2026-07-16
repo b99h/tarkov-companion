@@ -519,3 +519,29 @@ export interface OcrMatch {
   matchedTaskId: string | null
   candidates: OcrMatchCandidate[]
 }
+
+// ── Phase 7.3: in-app updates ───────────────────────────────────────────────
+
+export type UpdateState =
+  | 'idle'
+  | 'checking'
+  | 'available'
+  | 'downloading'
+  | 'ready'
+  | 'error'
+
+/** Pushed from main over `updates:status` whenever the updater's state moves. */
+export interface UpdateStatus {
+  state: UpdateState
+  /** The remote version, once known ('available' onward). */
+  version?: string
+  /** Download progress 0-100, while 'downloading'. */
+  percent?: number
+  /** Human-readable failure, when 'error'. */
+  message?: string
+  /**
+   * True when running as the portable exe, which cannot self-update — the
+   * renderer shows a download link instead of the update button.
+   */
+  portable?: boolean
+}

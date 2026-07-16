@@ -6,7 +6,8 @@ import type {
   PlayerProgress,
   QuestEventNotice,
   WatcherStatus,
-  ScreenshotCapture
+  ScreenshotCapture,
+  UpdateStatus
 } from '../shared/types'
 
 function subscribe<T>(channel: string, callback: (payload: T) => void): () => void {
@@ -55,7 +56,12 @@ const api: AppApi = {
   importHistorical: (sessionNames) => ipcRenderer.invoke('logs:import', sessionNames),
   onProgressUpdated: (callback) => subscribe<PlayerProgress>('progress:updated', callback),
   onQuestEvents: (callback) => subscribe<QuestEventNotice[]>('log:questEvents', callback),
-  onWatcherStatus: (callback) => subscribe<WatcherStatus>('watcher:status', callback)
+  onWatcherStatus: (callback) => subscribe<WatcherStatus>('watcher:status', callback),
+
+  checkForUpdates: () => ipcRenderer.invoke('updates:check'),
+  downloadUpdate: () => ipcRenderer.invoke('updates:download'),
+  installUpdate: () => ipcRenderer.invoke('updates:install'),
+  onUpdateStatus: (callback) => subscribe<UpdateStatus>('updates:status', callback)
 }
 
 contextBridge.exposeInMainWorld('api', api)

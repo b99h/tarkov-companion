@@ -26,6 +26,7 @@ import {
 import { loadSettings, updateSettings } from './store/settingsStore'
 import { clearCheckpoints } from './store/checkpointStore'
 import { LogWatcher } from './logs/logWatcher'
+import { UpdateManager } from './updates'
 import { captureAndOcrClipboard, terminateOcrWorker } from './ocr/questOcr'
 import { CaptureManager } from './ocr/screenCapture'
 import {
@@ -44,6 +45,7 @@ import type { QuestEventNotice, WatcherStatus, PlayerProgress } from '../shared/
 let mainWindow: BrowserWindow | null = null
 let watcher: LogWatcher | null = null
 let captureManager: CaptureManager | null = null
+let updateManager: UpdateManager | null = null
 let tray: Tray | null = null
 // Set once the user actually chooses "Quit" (tray menu or OS quit), so the
 // window's 'close' handler knows to let it through instead of hiding to tray.
@@ -341,6 +343,12 @@ app.whenReady().then(async () => {
     onCapture: (capture) => send('catchup:capture', capture),
     onError: (message) => send('catchup:captureError', message)
   })
+  updateManager = new UpdateManager((status) => send('updates:status', status))
+  // isQuitting must be set before quitAndInstall, or the minimize-to-tray
+  // close handler would cancel the updater's window close and strand it.
+  updateManager.registerIpcHandlers(() => {
+    isQuitting = true
+  })
   registerIpcHandlers()
   // Started via the Windows startup entry (see applyLaunchAtStartup) → open hidden to the tray.
   createWindow(process.argv.includes('--hidden'))
@@ -352,6 +360,9 @@ app.whenReady().then(async () => {
     onItems: (items) => send('data:pricesUpdated', items),
     onCrafts: (crafts) => send('data:craftsUpdated', crafts)
   })
+
+  // Startup + 4-hourly update checks (no-op in dev; never downloads on its own).
+  updateManager.start()
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow(false)

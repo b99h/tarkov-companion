@@ -9,6 +9,7 @@ import { ProfileBar } from './views/ProfileBar'
 import { Settings } from './views/Settings'
 import { QuestCatchup } from './views/QuestCatchup'
 import { Toasts } from './views/Toasts'
+import { UpdateBanner } from './views/UpdateBanner'
 import { ErrorBoundary } from './views/ErrorBoundary'
 
 type View = 'quests' | 'kappa' | 'flea' | 'ammo' | 'maps' | 'settings' | 'catchup'
@@ -28,6 +29,7 @@ function App(): React.JSX.Element {
           <h1>Tarkov Companion</h1>
           <span className="version">v{version}</span>
         </header>
+        <UpdateBanner />
         <nav>
           <button className={view === 'quests' ? 'active' : ''} onClick={() => setView('quests')}>
             Quest Board
