@@ -540,6 +540,57 @@ export function inferPrerequisiteCompletions(
   return { completed: [...completed], uncertain: [...uncertain] }
 }
 
+/**
+ * Maps a task id to the ids of tasks whose requirement on it *demands
+ * completion*. These are the only edges that let us reason backwards from a
+ * dependant's state to this task's: a dependant that also accepts `active` or
+ * `failed` proves nothing about its prerequisite.
+ */
+export function buildCompletionDependentsMap(tasks: TaskData[]): Map<string, string[]> {
+  const dependents = new Map<string, string[]>()
+  for (const task of tasks) {
+    for (const req of task.requirements) {
+      if (!demandsCompletion(req)) continue
+      const list = dependents.get(req.taskId) ?? []
+      list.push(task.id)
+      dependents.set(req.taskId, list)
+    }
+  }
+  return dependents
+}
+
+/**
+ * Every task transitively reachable downstream of `taskId` along
+ * completion-demanding edges — i.e. every task that cannot be started, let
+ * alone finished, unless `taskId` is complete. Excludes `taskId` itself.
+ */
+export function completionDescendants(
+  taskId: string,
+  completionDependents: Map<string, string[]>
+): Set<string> {
+  const result = new Set<string>()
+  const stack = [...(completionDependents.get(taskId) ?? [])]
+  while (stack.length > 0) {
+    const id = stack.pop()!
+    if (result.has(id)) continue
+    result.add(id)
+    stack.push(...(completionDependents.get(id) ?? []))
+  }
+  result.delete(taskId)
+  return result
+}
+
+/** A completion we decline to clear, and the downstream evidence that settles it. */
+export interface CorroboratedCompletion {
+  taskId: string
+  /**
+   * Descendants that prove `taskId` is genuinely done: each one demands its
+   * completion (transitively) and is itself either active in the capture or
+   * already tracked complete.
+   */
+  corroboratedBy: string[]
+}
+
 export interface ActiveListReconciliation {
   /**
    * Tracked as available but absent from a complete active list — in Tarkov an
@@ -548,6 +599,13 @@ export interface ActiveListReconciliation {
   toComplete: string[]
   /** Tracked as completed yet present in the active list — the record is wrong. */
   toUncomplete: string[]
+  /**
+   * Also tracked completed and also present in the capture, but *corroborated*
+   * by a downstream quest that could not exist without this one being done — so
+   * the capture, not the tracker, is the thing that's wrong. Surfaced rather
+   * than dropped, so a skipped mismatch is never invisible.
+   */
+  corroboratedUncomplete: CorroboratedCompletion[]
   /**
    * Present in the active list but tracked as locked: some upstream completion
    * is missing from our records. Reported for review rather than acted on, since
@@ -585,12 +643,33 @@ export function reconcileWithActiveList(
   )
 
   // Single pass over the *original* state for the two backward-looking lists.
+  //
+  // A quest being in the capture is weaker evidence than it looks: Tarkov keeps
+  // a finished quest listed until it's turned in, so "in the list" does not mean
+  // "not done". Before proposing to clear a completion we therefore look
+  // downstream for a quest that demands it — one that the player has active or
+  // has already finished settles the question in the tracker's favour. Seen live
+  // on Debtor: it showed up in the capture (3 clean OCR hits), but Goals and
+  // Means, Top Secret and Information Source were in that same capture, and each
+  // is only reachable through a complete-only chain running back through Debtor.
+  // Proposing to clear it would have been provably wrong.
+  const completionDependents = buildCompletionDependentsMap(playable)
+  const completedSet = new Set(progress.completedTaskIds)
+  const corroborators = (taskId: string): string[] =>
+    [...completionDescendants(taskId, completionDependents)].filter(
+      (id) => seen.has(id) || completedSet.has(id)
+    )
+
   const toUncomplete: string[] = []
+  const corroboratedUncomplete: CorroboratedCompletion[] = []
   const activeButLocked: string[] = []
   for (const task of deriveTaskStates(playable, progress)) {
     const isSeen = seen.has(task.id)
-    if (task.status === 'completed' && isSeen) toUncomplete.push(task.id)
-    else if (isSeen && (task.status === 'locked' || task.status === 'level-locked')) {
+    if (task.status === 'completed' && isSeen) {
+      const corroboratedBy = corroborators(task.id)
+      if (corroboratedBy.length > 0) corroboratedUncomplete.push({ taskId: task.id, corroboratedBy })
+      else toUncomplete.push(task.id)
+    } else if (isSeen && (task.status === 'locked' || task.status === 'level-locked')) {
       activeButLocked.push(task.id)
     }
   }
@@ -615,7 +694,51 @@ export function reconcileWithActiveList(
     }
   }
 
-  return { toComplete, toUncomplete, activeButLocked }
+  return { toComplete, toUncomplete, corroboratedUncomplete, activeButLocked }
+}
+
+export interface ClearCascade {
+  /** The completions the user actually asked to clear (only those tracked done). */
+  requested: string[]
+  /**
+   * Additional tracked completions that must be cleared alongside them: each is
+   * reachable downstream by completion-demanding edges, so leaving it marked
+   * done would assert a quest finished whose prerequisite is not.
+   */
+  cascaded: string[]
+  /** Everything to clear — `requested` plus `cascaded`, deduped. */
+  all: string[]
+}
+
+/**
+ * Expand a set of completions-to-clear into everything clearing them implies.
+ *
+ * Clearing a quest without cascading corrupts the graph: measured live, clearing
+ * four completions should have propagated through nine quests, and instead left
+ * three tasks marked done whose prerequisites were not. Callers must show the
+ * cascade in the review — "clear 1" quietly becoming "clear 9" is not a thing to
+ * do silently.
+ */
+export function cascadeClearedCompletions(
+  clearIds: string[],
+  tasks: TaskData[],
+  completedTaskIds: string[]
+): ClearCascade {
+  const completedSet = new Set(completedTaskIds)
+  const completionDependents = buildCompletionDependentsMap(tasks)
+  const requested = clearIds.filter((id) => completedSet.has(id))
+  const requestedSet = new Set(requested)
+
+  const cascaded = new Set<string>()
+  for (const id of requested) {
+    for (const descendant of completionDescendants(id, completionDependents)) {
+      // Only tracked completions are cascaded: an unfinished descendant has
+      // nothing to clear, and the graph will re-lock it on its own.
+      if (completedSet.has(descendant) && !requestedSet.has(descendant)) cascaded.add(descendant)
+    }
+  }
+
+  return { requested, cascaded: [...cascaded], all: [...new Set([...requested, ...cascaded])] }
 }
 
 /** Case/whitespace/punctuation-insensitive normalization for OCR text matching. */

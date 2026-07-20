@@ -1,24 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppData } from '../state/AppDataContext'
 import {
+  cascadeClearedCompletions,
   compareTraders,
   inferPrerequisiteCompletions,
   matchOcrLinesToTasks,
   reconcileWithActiveList
 } from '@shared/questEngine'
+import type { CorroboratedCompletion } from '@shared/questEngine'
 import type { OcrMatch, ScreenshotCapture, TaskData } from '@shared/types'
 
 /** Below this, a line's top candidate is treated as noise, not worth a manual pick. */
 const AMBIGUOUS_SHOW_FLOOR = 0.4
-
-/**
- * Which in-game task-list tab the captures came from. Active-tab quests are in
- * progress (never marked; only their upstream prerequisites are inferred).
- * Completed-tab quests ARE completions — they're marked directly, and upstream
- * inference still runs on them too (a completed quest's completion-demanding
- * prereqs must also be done).
- */
-type CatchupMode = 'active' | 'completed'
 
 interface DetectedQuest {
   taskId: string
@@ -32,7 +25,6 @@ export function QuestCatchup(): React.JSX.Element {
   // here — the add-only helper stays for other callers.
   const { tasks, progress, applyBulkCompletion } = useAppData()
 
-  const [mode, setMode] = useState<CatchupMode>('active')
   const [screenshots, setScreenshots] = useState<ScreenshotCapture[]>([])
   const [capturing, setCapturing] = useState(false)
   const [captureError, setCaptureError] = useState<string | null>(null)
@@ -83,23 +75,6 @@ export function QuestCatchup(): React.JSX.Element {
     setScreenshots((prev) => prev.filter((s) => s.id !== id))
   }, [])
 
-  // A capture is of one specific in-game tab, so switching modes discards the
-  // screenshots and any analysis — mixing tabs in one session would silently
-  // mark in-progress quests as done (or vice versa).
-  const switchMode = useCallback((next: CatchupMode) => {
-    setMode((prev) => {
-      if (prev === next) return prev
-      setScreenshots([])
-      setRows(null)
-      setExcludedDetectedIds(new Set())
-      setAmbiguousSelections({})
-      setPrereqOverrides({})
-      setReconcileOverrides({})
-      setFullListConfirmed(false)
-      setAppliedCount(null)
-      return next
-    })
-  }, [])
 
   // While capture mode is armed, native hotkey captures and their errors arrive
   // over push channels — append captures to the list just like clipboard ones.
@@ -247,14 +222,6 @@ export function QuestCatchup(): React.JSX.Element {
     return inferPrerequisiteCompletions(confirmedDetectedIds, tasks, progress.completedTaskIds)
   }, [tasks, progress, confirmedDetectedIds])
 
-  // Completed-tab detections are completions in their own right — marked
-  // directly, minus anything already tracked as done.
-  const directMarkIds = useMemo(() => {
-    if (mode !== 'completed' || !progress) return []
-    const alreadyDone = new Set(progress.completedTaskIds)
-    return confirmedDetectedIds.filter((id) => !alreadyDone.has(id))
-  }, [mode, progress, confirmedDetectedIds])
-
   const prereqIds = useMemo(
     () => [...inferred.completed, ...inferred.uncertain],
     [inferred]
@@ -297,7 +264,6 @@ export function QuestCatchup(): React.JSX.Element {
   // Reconciliation treats a complete active-list capture as ground truth,
   // catching what upstream inference structurally can't: quests finished long
   // ago whose whole chain is done, so nothing active points back at them.
-  // Active-tab only — the completed tab isn't the active list.
   // Always computed once there's a capture to judge against, even before the
   // completeness box is ticked: the *count* is what tells the user this step
   // exists and is worth doing. Only whether its ids join the apply set depends
@@ -305,13 +271,18 @@ export function QuestCatchup(): React.JSX.Element {
   // inferred prereqs while 86 reconciliation candidates sat unticked below a
   // long results list, and looked like the fix simply hadn't worked.)
   const reconciliation = useMemo(() => {
-    if (mode !== 'active' || !tasks || !progress || confirmedDetectedIds.length === 0) {
-      return { toComplete: [] as string[], toUncomplete: [] as string[], activeButLocked: [] as string[] }
+    if (!tasks || !progress || confirmedDetectedIds.length === 0) {
+      return {
+        toComplete: [] as string[],
+        toUncomplete: [] as string[],
+        corroboratedUncomplete: [] as CorroboratedCompletion[],
+        activeButLocked: [] as string[]
+      }
     }
     return reconcileWithActiveList(confirmedDetectedIds, tasks, progress)
-  }, [mode, confirmedDetectedIds, tasks, progress])
+  }, [confirmedDetectedIds, tasks, progress])
 
-  const reconciliationEnabled = mode === 'active' && fullListConfirmed
+  const reconciliationEnabled = fullListConfirmed
   const reconcilableCount = reconciliation.toComplete.length + reconciliation.toUncomplete.length
 
   // Both directions default to checked (the capture is asserted complete);
@@ -336,20 +307,25 @@ export function QuestCatchup(): React.JSX.Element {
     [reconciliationEnabled, reconciliation, isReconcileChecked]
   )
 
-  // Everything the Apply button will actually write: inferred prereqs in both
-  // modes, the detected quests themselves on the completed tab, plus whatever
-  // reconciliation proposes.
+  // Everything the Apply button will actually write: the inferred prerequisites
+  // of the captured active quests, plus whatever reconciliation proposes.
   const willMarkIds = useMemo(
-    () => [...new Set([...directMarkIds, ...includedPrereqIds, ...reconcileCompleteIds])],
-    [directMarkIds, includedPrereqIds, reconcileCompleteIds]
+    () => [...new Set([...includedPrereqIds, ...reconcileCompleteIds])],
+    [includedPrereqIds, reconcileCompleteIds]
+  )
+
+  // Clearing a completion has to take its downstream with it, or the apply
+  // leaves quests marked done whose prerequisites aren't. The cascade is
+  // rendered below the list too — silently turning "clear 1" into "clear 9"
+  // would be worse than not cascading at all.
+  const clearCascade = useMemo(
+    () => cascadeClearedCompletions(reconcileUncompleteIds, tasks ?? [], progress?.completedTaskIds ?? []),
+    [reconcileUncompleteIds, tasks, progress]
   )
 
   // A quest the player has active must not be marked completed by inference in
   // the same apply that reconciliation is clearing it — removals win.
-  const willUnmarkIds = useMemo(
-    () => reconcileUncompleteIds,
-    [reconcileUncompleteIds]
-  )
+  const willUnmarkIds = clearCascade.all
 
   const apply = useCallback(async () => {
     setApplying(true)
@@ -374,41 +350,11 @@ export function QuestCatchup(): React.JSX.Element {
         <h2>Quest Catchup</h2>
         <p className="hint">
           New setup, already mid-wipe? Capture your in-game quest list and this will let you
-          review and bulk-mark completions.{' '}
-          {mode === 'active' ? (
-            <>
-              Active-tab mode infers which quests must already be done for your active quests to
-              be unlocked — the active quests themselves are left untouched (in progress, not
-              done).
-            </>
-          ) : (
-            <>
-              Completed-tab mode marks the recognized quests as completed directly, plus
-              everything upstream that must have been done first. Use it for finished side-chains
-              the active-tab inference can&apos;t see.
-            </>
-          )}
+          review and bulk-mark completions. It infers which quests must already be done for your
+          active quests to be unlocked — the active quests themselves are left untouched (in
+          progress, not done) — and, if you confirm the capture covers your whole list,
+          reconciles the tracker against it.
         </p>
-
-        <div className="button-row">
-          <div className="group-by-toggle" role="group" aria-label="Which in-game tab was captured">
-            <button
-              className={mode === 'active' ? 'active' : ''}
-              onClick={() => switchMode('active')}
-            >
-              Active tab
-            </button>
-            <button
-              className={mode === 'completed' ? 'active' : ''}
-              onClick={() => switchMode('completed')}
-            >
-              Completed tab
-            </button>
-          </div>
-          <span className="muted">
-            Capture the matching tab of the in-game Tasks screen. Switching clears any captures.
-          </span>
-        </div>
 
         <div className="button-row">
           <button className={captureArmed ? 'active' : ''} onClick={toggleCaptureMode}>
@@ -417,8 +363,7 @@ export function QuestCatchup(): React.JSX.Element {
           <span className="muted">
             {captureArmed ? (
               <>
-                Open the Tasks screen in-game on the{' '}
-                {mode === 'active' ? 'active' : 'completed'} tab and press{' '}
+                Open the Tasks screen in-game and press{' '}
                 <kbd>{captureHotkey}</kbd> — scroll and press again for each screenful. (Requires
                 borderless windowed mode.)
               </>
@@ -457,7 +402,7 @@ export function QuestCatchup(): React.JSX.Element {
 
       {rows && (
         <section className="settings-block">
-          <h2>Recognized {mode === 'active' ? 'active' : 'completed'} quests</h2>
+          <h2>Recognized active quests</h2>
 
           {detectedQuests.length === 0 && ambiguousRows.length === 0 ? (
             <p className="muted">
@@ -534,7 +479,7 @@ export function QuestCatchup(): React.JSX.Element {
         </section>
       )}
 
-      {rows && mode === 'active' && confirmedDetectedIds.length > 0 && (
+      {rows && confirmedDetectedIds.length > 0 && (
         <section className={`settings-block${reconcilableCount > 0 && !fullListConfirmed ? ' needs-attention' : ''}`}>
           <h2>
             Match my tracker to these screenshots
@@ -652,6 +597,67 @@ export function QuestCatchup(): React.JSX.Element {
                           )
                         })}
                       </div>
+                      {clearCascade.cascaded.length > 0 && (
+                        <div className="callout">
+                          <strong>
+                            Clearing {clearCascade.requested.length} also clears{' '}
+                            {clearCascade.cascaded.length} downstream quest(s).
+                          </strong>{' '}
+                          These are recorded as completed but can only be reached through a quest
+                          you&apos;re clearing, so leaving them marked would claim you finished a
+                          quest whose prerequisite you haven&apos;t:
+                          <ul className="cascade-list">
+                            {clearCascade.cascaded.map((id) => {
+                              const t = tasksById.get(id)
+                              return (
+                                <li key={id}>
+                                  {t ? `${t.name} · ${t.trader}` : id}
+                                </li>
+                              )
+                            })}
+                          </ul>
+                          Untick the quest above if you don&apos;t want this.
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {reconciliation.corroboratedUncomplete.length > 0 && (
+                    <>
+                      <h3 className="catchup-subheading">
+                        In your capture but provably done — not touching these (
+                        {reconciliation.corroboratedUncomplete.length})
+                      </h3>
+                      <p className="hint">
+                        These are in the capture <em>and</em> tracked as done, but a quest you
+                        already have — listed below each one — can only exist if this quest is
+                        finished. So the capture is the misleading part: Tarkov keeps a completed
+                        quest listed until you turn it in.{' '}
+                        <strong>Nothing to do here — it&apos;s a note, not a decision.</strong>
+                      </p>
+                      <div className="session-list">
+                        {reconciliation.corroboratedUncomplete.map(({ taskId, corroboratedBy }) => {
+                          const t = tasksById.get(taskId)
+                          if (!t) return null
+                          const names = corroboratedBy
+                            .map((id) => tasksById.get(id)?.name ?? id)
+                            .slice(0, 3)
+                          return (
+                            <div key={taskId} className="session-row muted-row">
+                              <span className="session-name">
+                                {t.kappaRequired && <span className="kappa-star">★</span>}
+                                {t.name}
+                                <span className="muted">
+                                  {' '}
+                                  · {t.trader} · required by {names.join(', ')}
+                                  {corroboratedBy.length > names.length &&
+                                    ` +${corroboratedBy.length - names.length} more`}
+                                </span>
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </div>
                     </>
                   )}
                 </>
@@ -677,15 +683,6 @@ export function QuestCatchup(): React.JSX.Element {
             Will mark {willMarkIds.length} completed
             {willUnmarkIds.length > 0 && <> and clear {willUnmarkIds.length}</>}
           </h2>
-          {mode === 'completed' && (
-            <p className="hint">
-              {directMarkIds.length} recognized quest(s) from the completed tab will be marked
-              directly{directMarkIds.length !== confirmedDetectedIds.length && (
-                <> (the rest are already tracked as done)</>
-              )}
-              {prereqIds.length > 0 && <>, plus the inferred prerequisites below</>}.
-            </p>
-          )}
           {prereqIds.length === 0 ? (
             <p className="muted">
               Nothing further to infer — either these quests have no prerequisites, or everything

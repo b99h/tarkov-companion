@@ -1888,6 +1888,23 @@ kbd {
   margin: 16px 0 6px;
 }
 
+/* Downstream quests a clear will take with it — read as consequences of the
+   ticked row above, so they sit inside the callout rather than as its own list. */
+.cascade-list {
+  margin: 6px 0;
+  padding-left: 20px;
+}
+
+.cascade-list li {
+  margin: 2px 0;
+}
+
+/* Reconciliation rows shown for information only: no checkbox, nothing to decide. */
+.session-row.muted-row {
+  opacity: 0.7;
+  padding-left: 22px;
+}
+
 .catchup-unmatched {
   margin-top: 12px;
 }
