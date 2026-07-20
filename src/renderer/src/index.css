@@ -433,6 +433,55 @@ main {
   color: #9db4dd;
 }
 
+/* Quest chain: "Comes after" / "Leads to" rows in the detail panel. */
+.chain-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.chain-label {
+  flex: 0 0 84px;
+  font-size: 12px;
+  color: #8d8f96;
+}
+
+.chain-empty {
+  font-size: 12px;
+  color: #6f717a;
+  font-style: italic;
+}
+
+.chain-row .prereq-chips {
+  margin-top: 0;
+}
+
+.chain-chip {
+  background: #2a2b31;
+  color: #9db4dd;
+}
+
+/* Prerequisites carry completion state; colour is the whole point of the row.
+   Borders as well as text colour, so it survives colour-blind viewing and the
+   ✓/✗ mark carries the same meaning without relying on hue at all. */
+.chain-chip.done {
+  background: #1d2c1f;
+  border-color: #3f7d46;
+  color: #7fd18b;
+}
+
+.chain-chip.not-done {
+  background: #2e1d1f;
+  border-color: #8a3f45;
+  color: #f08a92;
+}
+
+.chain-mark {
+  margin-right: 5px;
+  font-weight: 700;
+}
+
 .unlocks-note {
   color: #e0c341;
   font-size: 12px;

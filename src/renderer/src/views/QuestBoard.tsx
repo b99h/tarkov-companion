@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   deriveTaskStates,
@@ -14,9 +14,17 @@ import {
 } from '@shared/questEngine'
 import type { QuestSortMode } from '@shared/questEngine'
 import type { TaskStatus, TaskWithStatus } from '@shared/types'
+
 import { useAppData } from '../state/AppDataContext'
 import { usePersistedState } from '../state/usePersistedState'
 import { WikiGallery } from './WikiGallery'
+
+/** A neighbouring quest in the chain, with whether it's on the player's record. */
+interface RelatedQuest {
+  id: string
+  name: string
+  completed: boolean
+}
 
 const STATUS_LABEL: Record<TaskStatus, string> = {
   completed: 'Completed',
@@ -167,6 +175,33 @@ export function QuestBoard(): React.JSX.Element {
     for (const t of states) map.set(t.id, countDownstreamKappaTasks(t.id, dependents, tasksById))
     return map
   }, [states, dependents, tasksById])
+
+  // The quest's place in its chain: what came before, what it opens up. Built
+  // per rendered row (only expanded rows read it) off the same catalog-wide
+  // maps as everything else, so a prerequisite filtered out of the current view
+  // still resolves.
+  //
+  // Completion here is read from progress, NOT from the row's derived status —
+  // a quest can be recorded complete while the catalog claims its prerequisite
+  // isn't, and that disagreement is exactly what this is for showing. The
+  // catalog's chain is display data: it annotates, it never overrules the
+  // player's own record. See PLAN.md Phase 14.1.
+  const questChain = useCallback(
+    (taskId: string): { prerequisites: RelatedQuest[]; unlocks: RelatedQuest[] } => {
+      const completed = new Set(progress?.completedTaskIds ?? [])
+      const toRelated = (id: string): RelatedQuest => ({
+        id,
+        name: allTaskNameById.get(id) ?? 'Unknown quest',
+        completed: completed.has(id)
+      })
+      const byName = (a: RelatedQuest, b: RelatedQuest): number => a.name.localeCompare(b.name)
+      return {
+        prerequisites: (tasksById.get(taskId)?.requiredTaskIds ?? []).map(toRelated).sort(byName),
+        unlocks: (dependents.get(taskId) ?? []).map(toRelated).sort(byName)
+      }
+    },
+    [tasksById, dependents, allTaskNameById, progress]
+  )
 
   // Comparator for the available list within each group, per chosen sort mode.
   // Reuses the precomputed downstream-Kappa memo so Kappa sorting is a lookup.
@@ -416,6 +451,7 @@ export function QuestBoard(): React.JSX.Element {
                       }}
                       downstreamKappa={downstreamKappaByTask.get(task.id) ?? 0}
                       nameQualifier={taskNameQualifier(task, duplicateNames, allTaskNameById)}
+                      chain={questChain(task.id)}
                       blockedByNames={task.blockedByTaskIds.map(
                         (id) => tasksById.get(id)?.name ?? id
                       )}
@@ -452,7 +488,8 @@ export function QuestBoard(): React.JSX.Element {
                             }}
                             downstreamKappa={downstreamKappaByTask.get(task.id) ?? 0}
                             nameQualifier={taskNameQualifier(task, duplicateNames, allTaskNameById)}
-                            blockedByNames={task.blockedByTaskIds.map(
+                            chain={questChain(task.id)}
+                      blockedByNames={task.blockedByTaskIds.map(
                               (id) => tasksById.get(id)?.name ?? id
                             )}
                           />
@@ -489,6 +526,7 @@ export function QuestBoard(): React.JSX.Element {
                             }}
                             downstreamKappa={downstreamKappaByTask.get(task.id) ?? 0}
                             nameQualifier={taskNameQualifier(task, duplicateNames, allTaskNameById)}
+                            chain={questChain(task.id)}
                             blockedByNames={[]}
                           />
                         ))}
@@ -516,6 +554,8 @@ interface QuestRowProps {
   rowRef: (el: HTMLLIElement | null) => void
   downstreamKappa: number
   blockedByNames: string[]
+  /** Prerequisites and follow-ups, for the chain section of the detail panel. */
+  chain: { prerequisites: RelatedQuest[]; unlocks: RelatedQuest[] }
   /** Distinguishes same-name-different-quest rows (e.g. Mechanic's 3× "Make Amends"). */
   nameQualifier: string | null
   trackedOnMap?: boolean
@@ -533,6 +573,7 @@ function QuestRow({
   rowRef,
   downstreamKappa,
   blockedByNames,
+  chain,
   nameQualifier,
   trackedOnMap,
   onToggleMapTracking
@@ -623,6 +664,25 @@ function QuestRow({
             )}
           </div>
 
+          {(chain.prerequisites.length > 0 || chain.unlocks.length > 0) && (
+            <div className="detail-section">
+              <h4>Quest chain</h4>
+              <ChainRow
+                label="Comes after"
+                quests={chain.prerequisites}
+                empty="Nothing — this quest starts its chain."
+                showState
+                onJumpTo={onJumpTo}
+              />
+              <ChainRow
+                label="Leads to"
+                quests={chain.unlocks}
+                empty="Nothing — this quest ends its chain."
+                onJumpTo={onJumpTo}
+              />
+            </div>
+          )}
+
           {downstreamKappa > 0 && (
             <p className="unlocks-note">
               Unlocks {downstreamKappa} more Kappa quest{downstreamKappa === 1 ? '' : 's'}
@@ -641,5 +701,54 @@ function QuestRow({
         </div>
       )}
     </li>
+  )
+}
+
+/**
+ * One direction of a quest's chain. Prerequisites carry their completion state
+ * (green = on your record, red = not), which is the point of the section; the
+ * follow-ups deliberately don't — a "leads to" quest being incomplete is the
+ * normal case and colouring them all red would be noise, not information.
+ */
+function ChainRow({
+  label,
+  quests,
+  empty,
+  showState,
+  onJumpTo
+}: {
+  label: string
+  quests: RelatedQuest[]
+  empty: string
+  showState?: boolean
+  onJumpTo: (taskId: string) => void
+}): React.JSX.Element {
+  return (
+    <div className="chain-row">
+      <span className="chain-label">{label}</span>
+      {quests.length === 0 ? (
+        <span className="chain-empty">{empty}</span>
+      ) : (
+        <div className="prereq-chips">
+          {quests.map((q) => (
+            <button
+              key={q.id}
+              className={`chip chain-chip${showState ? (q.completed ? ' done' : ' not-done') : ''}`}
+              onClick={() => onJumpTo(q.id)}
+              title={
+                showState
+                  ? q.completed
+                    ? `${q.name} — completed`
+                    : `${q.name} — not completed on your record`
+                  : `Jump to ${q.name}`
+              }
+            >
+              {showState && <span className="chain-mark">{q.completed ? '✓' : '✗'}</span>}
+              {q.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
