@@ -662,3 +662,44 @@ describe('reconcileWithActiveList', () => {
     expect(r.activeButLocked).not.toContain('other-faction')
   })
 })
+
+describe('reconcileWithActiveList — cascade to a fixed point', () => {
+  // A -> B -> C chain, none tracked done, none in the capture. Only A is
+  // available at the start; completing it unlocks B, then C. A single pass
+  // would propose A alone and leave B (then C) surfacing as freshly
+  // "available" quests the player had actually finished long ago.
+  const chain: TaskData[] = [
+    task({ id: 'A', name: 'First' }),
+    task({ id: 'B', name: 'Second', requiredTaskIds: ['A'] }),
+    task({ id: 'C', name: 'Third', requiredTaskIds: ['B'] })
+  ]
+  const prog: PlayerProgress = {
+    completedTaskIds: [],
+    failedTaskIds: [],
+    playerLevel: 50,
+    faction: 'Usec',
+    stationLevels: {}
+  }
+
+  it('cascades through the whole unlocked chain, not just the first step', () => {
+    const r = reconcileWithActiveList([], chain, prog)
+    expect(new Set(r.toComplete)).toEqual(new Set(['A', 'B', 'C']))
+  })
+
+  it('stops at a quest that IS in the capture, leaving its dependants alone', () => {
+    // B is genuinely active, so B and everything behind it stay untouched.
+    const r = reconcileWithActiveList(['B'], chain, prog)
+    expect(r.toComplete).toEqual(['A'])
+    expect(r.toComplete).not.toContain('B')
+    expect(r.toComplete).not.toContain('C')
+  })
+
+  it('does not cascade past a level gate', () => {
+    const gated: TaskData[] = [
+      task({ id: 'A', name: 'First' }),
+      task({ id: 'B', name: 'Second', requiredTaskIds: ['A'], minPlayerLevel: 99 })
+    ]
+    const r = reconcileWithActiveList([], gated, prog)
+    expect(r.toComplete).toEqual(['A'])
+  })
+})

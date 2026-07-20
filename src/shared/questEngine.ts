@@ -572,18 +572,35 @@ export function reconcileWithActiveList(
   const playable = tasks.filter(
     (t) => t.factionName === 'Any' || t.factionName === progress.faction
   )
-  const states = deriveTaskStates(playable, progress)
 
-  const toComplete: string[] = []
+  // Single pass over the *original* state for the two backward-looking lists.
   const toUncomplete: string[] = []
   const activeButLocked: string[] = []
-
-  for (const task of states) {
+  for (const task of deriveTaskStates(playable, progress)) {
     const isSeen = seen.has(task.id)
-    if (task.status === 'available' && !isSeen) toComplete.push(task.id)
-    else if (task.status === 'completed' && isSeen) toUncomplete.push(task.id)
+    if (task.status === 'completed' && isSeen) toUncomplete.push(task.id)
     else if (isSeen && (task.status === 'locked' || task.status === 'level-locked')) {
       activeButLocked.push(task.id)
+    }
+  }
+
+  // `toComplete` must iterate to a fixed point. Marking a quest done unlocks
+  // its dependants, and those are equally absent from the capture — so they're
+  // equally finished. A single pass only ever sees the quests that happened to
+  // be available before any of this was applied, which measured live as burying
+  // the player under a fresh wave of "available" quests they'd long since done
+  // (Prapor showed 12 available against 4 real; all 8 extras were locked before
+  // the apply and unlocked by it). Terminates because every round only adds to
+  // `completed` and the catalog is finite.
+  const completed = new Set(progress.completedTaskIds)
+  const toComplete: string[] = []
+  for (;;) {
+    const states = deriveTaskStates(playable, { ...progress, completedTaskIds: [...completed] })
+    const newlyDone = states.filter((t) => t.status === 'available' && !seen.has(t.id))
+    if (newlyDone.length === 0) break
+    for (const task of newlyDone) {
+      toComplete.push(task.id)
+      completed.add(task.id)
     }
   }
 
