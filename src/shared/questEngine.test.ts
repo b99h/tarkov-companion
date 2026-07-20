@@ -703,3 +703,28 @@ describe('reconcileWithActiveList — cascade to a fixed point', () => {
     expect(r.toComplete).toEqual(['A'])
   })
 })
+
+describe('inferPrerequisiteCompletions — active quests are never inferred done', () => {
+  // Real shape from the live catalog: House Arrest - Part 1 requires Debtor
+  // complete-only, and is itself pulled into the walk from a genuinely active
+  // quest further downstream. Debtor is ALSO in the player's active list, so
+  // it must never be proposed as completed however the graph reads.
+  const catalog: TaskData[] = [
+    task({ id: 'debtor', name: 'Debtor' }),
+    task({ id: 'ha1', name: 'House Arrest - Part 1', requiredTaskIds: ['debtor'] }),
+    task({ id: 'np1', name: 'Network Provider - Part 1', requiredTaskIds: ['ha1'] })
+  ]
+
+  it('excludes a quest the player has active, even when required complete-only', () => {
+    // np1 and debtor are both active; the walk from np1 reaches debtor via ha1.
+    const r = inferPrerequisiteCompletions(['np1', 'debtor'], catalog, [])
+    expect(r.completed).toContain('ha1')
+    expect(r.completed).not.toContain('debtor')
+    expect(r.uncertain).not.toContain('debtor')
+  })
+
+  it('still infers it when the player does NOT have it active', () => {
+    const r = inferPrerequisiteCompletions(['np1'], catalog, [])
+    expect(r.completed).toEqual(expect.arrayContaining(['ha1', 'debtor']))
+  })
+})

@@ -506,10 +506,21 @@ export function inferPrerequisiteCompletions(
   const visited = new Set<string>(activeTaskIds)
   const stack = [...activeTaskIds]
 
+  // The player told us these are *in progress*. That observation outranks any
+  // inference: if a quest is sitting in their task list, it is not finished,
+  // however many downstream quests nominally demand its completion. Seeding
+  // `visited` alone never enforced this — traversal skipped them, but the
+  // `completed.add` below ran regardless, so an active quest that some other
+  // task required could still be proposed as done (seen live: Debtor, required
+  // complete-only by House Arrest - Part 1, auto-ticked while the player had it
+  // active). When the graph and the player disagree, believe the player.
+  const activeSet = new Set(activeTaskIds)
+
   while (stack.length > 0) {
     const task = tasksById.get(stack.pop()!)
     if (!task) continue
     for (const req of task.requirements) {
+      if (activeSet.has(req.taskId)) continue
       if (demandsCompletion(req)) {
         if (!completedSet.has(req.taskId)) completed.add(req.taskId)
         if (!visited.has(req.taskId)) {
