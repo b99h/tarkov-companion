@@ -586,9 +586,14 @@ export function QuestCatchup(): React.JSX.Element {
                   {reconciliation.toComplete.length > 0 && (
                     <>
                       <h3 className="catchup-subheading">
-                        Not in your list → mark completed ({reconcileCompleteIds.length}/
+                        Not in your capture → mark completed ({reconcileCompleteIds.length}/
                         {reconciliation.toComplete.length})
                       </h3>
+                      <p className="hint">
+                        Unlocked and not level-gated, so Tarkov would be listing them — their
+                        absence means they&apos;re already done. <strong>Ticked = mark completed.</strong>{' '}
+                        Untick anything you know you haven&apos;t finished.
+                      </p>
                       <div className="session-list">
                         {reconciliation.toComplete.map((id) => {
                           const t = tasksById.get(id)
@@ -615,9 +620,18 @@ export function QuestCatchup(): React.JSX.Element {
                   {reconciliation.toUncomplete.length > 0 && (
                     <>
                       <h3 className="catchup-subheading">
-                        Active in your list → clear the completed mark (
+                        In your capture but tracked as done — check these (
                         {reconcileUncompleteIds.length}/{reconciliation.toUncomplete.length})
                       </h3>
+                      <p className="callout">
+                        These contradict each other: your records say completed, the capture shows
+                        them listed. <strong>Ticked = clear the completed mark</strong> (back to
+                        active). <strong>Verify each one in game first</strong> — a finished quest
+                        can still be listed while it awaits turn-in, and clearing one that later
+                        quests were unlocked by leaves those quests marked done with an unfinished
+                        prerequisite. If a quest further down its chain is already done, this one
+                        really is complete: untick it.
+                      </p>
                       <div className="session-list">
                         {reconciliation.toUncomplete.map((id) => {
                           const t = tasksById.get(id)
@@ -632,7 +646,7 @@ export function QuestCatchup(): React.JSX.Element {
                               <span className="session-name">
                                 {t.kappaRequired && <span className="kappa-star">★</span>}
                                 {t.name}
-                                <span className="muted"> · {t.trader} · tracked as done, but you have it active</span>
+                                <span className="muted"> · {t.trader} · tracked as done, but appeared in your capture</span>
                               </span>
                             </label>
                           )
@@ -645,9 +659,11 @@ export function QuestCatchup(): React.JSX.Element {
 
               {reconciliation.activeButLocked.length > 0 && (
                 <p className="hint">
-                  {reconciliation.activeButLocked.length} captured quest(s) are tracked as{' '}
-                  <em>locked</em> — something upstream is missing from your records. The inferred
-                  prerequisites below should resolve them; nothing is changed on these directly.
+                  <strong>{reconciliation.activeButLocked.length} captured quest(s) are tracked as{' '}
+                  <em>locked</em></strong> — you have them, so a quest that unlocks them must be
+                  done and isn&apos;t recorded. Nothing is changed on these directly; the
+                  &quot;mark completed&quot; list above and the inferred prerequisites below are
+                  what resolve them. Nothing to do here — it&apos;s a note, not a decision.
                 </p>
               )}
             </>
