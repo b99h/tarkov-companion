@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppData } from '../state/AppDataContext'
 import {
-  cascadeClearedCompletions,
+  clearImpact,
   compareTraders,
   inferPrerequisiteCompletions,
   matchOcrLinesToTasks,
   reconcileWithActiveList
 } from '@shared/questEngine'
-import type { CorroboratedCompletion } from '@shared/questEngine'
+import type { CompletionConflict } from '@shared/questEngine'
 import type { OcrMatch, ScreenshotCapture, TaskData } from '@shared/types'
 
 /** Below this, a line's top candidate is treated as noise, not worth a manual pick. */
@@ -275,7 +275,7 @@ export function QuestCatchup(): React.JSX.Element {
       return {
         toComplete: [] as string[],
         toUncomplete: [] as string[],
-        corroboratedUncomplete: [] as CorroboratedCompletion[],
+        uncompleteConflicts: [] as CompletionConflict[],
         activeButLocked: [] as string[]
       }
     }
@@ -314,18 +314,16 @@ export function QuestCatchup(): React.JSX.Element {
     [includedPrereqIds, reconcileCompleteIds]
   )
 
-  // Clearing a completion has to take its downstream with it, or the apply
-  // leaves quests marked done whose prerequisites aren't. The cascade is
-  // rendered below the list too — silently turning "clear 1" into "clear 9"
-  // would be worse than not cascading at all.
-  const clearCascade = useMemo(
-    () => cascadeClearedCompletions(reconcileUncompleteIds, tasks ?? [], progress?.completedTaskIds ?? []),
+  // Reported below the list, never applied — see clearImpact. Cascading these
+  // would have deleted ten completions the game itself logged as finished.
+  const impact = useMemo(
+    () => clearImpact(reconcileUncompleteIds, tasks ?? [], progress?.completedTaskIds ?? []),
     [reconcileUncompleteIds, tasks, progress]
   )
 
-  // A quest the player has active must not be marked completed by inference in
-  // the same apply that reconciliation is clearing it — removals win.
-  const willUnmarkIds = clearCascade.all
+  // Exactly what the user ticked. A quest they have active must not be marked
+  // completed by inference in the same apply that clears it — removals win.
+  const willUnmarkIds = reconcileUncompleteIds
 
   const apply = useCallback(async () => {
     setApplying(true)
@@ -597,67 +595,41 @@ export function QuestCatchup(): React.JSX.Element {
                           )
                         })}
                       </div>
-                      {clearCascade.cascaded.length > 0 && (
+                      {reconciliation.uncompleteConflicts.length > 0 && (
                         <div className="callout">
                           <strong>
-                            Clearing {clearCascade.requested.length} also clears{' '}
-                            {clearCascade.cascaded.length} downstream quest(s).
+                            Heads up: tarkov.dev&apos;s quest tree disagrees with{' '}
+                            {reconciliation.uncompleteConflicts.length} of these.
                           </strong>{' '}
-                          These are recorded as completed but can only be reached through a quest
-                          you&apos;re clearing, so leaving them marked would claim you finished a
-                          quest whose prerequisite you haven&apos;t:
+                          It claims each one must be finished before quests you&apos;ve already
+                          done. Your in-game quest list wins — the catalog&apos;s prerequisites
+                          don&apos;t always match the live game — so these are still ticked.
+                          Listed only so nothing is hidden from you:
                           <ul className="cascade-list">
-                            {clearCascade.cascaded.map((id) => {
-                              const t = tasksById.get(id)
+                            {reconciliation.uncompleteConflicts.map(({ taskId, contradictedBy }) => {
+                              const t = tasksById.get(taskId)
+                              const names = contradictedBy
+                                .map((id) => tasksById.get(id)?.name ?? id)
+                                .slice(0, 3)
                               return (
-                                <li key={id}>
-                                  {t ? `${t.name} · ${t.trader}` : id}
+                                <li key={taskId}>
+                                  <strong>{t?.name ?? taskId}</strong> — supposedly required by{' '}
+                                  {names.join(', ')}
+                                  {contradictedBy.length > names.length &&
+                                    ` +${contradictedBy.length - names.length} more`}
                                 </li>
                               )
                             })}
                           </ul>
-                          Untick the quest above if you don&apos;t want this.
                         </div>
                       )}
-                    </>
-                  )}
-
-                  {reconciliation.corroboratedUncomplete.length > 0 && (
-                    <>
-                      <h3 className="catchup-subheading">
-                        In your capture but provably done — not touching these (
-                        {reconciliation.corroboratedUncomplete.length})
-                      </h3>
-                      <p className="hint">
-                        These are in the capture <em>and</em> tracked as done, but a quest you
-                        already have — listed below each one — can only exist if this quest is
-                        finished. So the capture is the misleading part: Tarkov keeps a completed
-                        quest listed until you turn it in.{' '}
-                        <strong>Nothing to do here — it&apos;s a note, not a decision.</strong>
-                      </p>
-                      <div className="session-list">
-                        {reconciliation.corroboratedUncomplete.map(({ taskId, corroboratedBy }) => {
-                          const t = tasksById.get(taskId)
-                          if (!t) return null
-                          const names = corroboratedBy
-                            .map((id) => tasksById.get(id)?.name ?? id)
-                            .slice(0, 3)
-                          return (
-                            <div key={taskId} className="session-row muted-row">
-                              <span className="session-name">
-                                {t.kappaRequired && <span className="kappa-star">★</span>}
-                                {t.name}
-                                <span className="muted">
-                                  {' '}
-                                  · {t.trader} · required by {names.join(', ')}
-                                  {corroboratedBy.length > names.length &&
-                                    ` +${corroboratedBy.length - names.length} more`}
-                                </span>
-                              </span>
-                            </div>
-                          )
-                        })}
-                      </div>
+                      {impact.orphaned.length > 0 && (
+                        <p className="hint">
+                          {impact.orphaned.length} quest(s) further down these chains stay marked
+                          completed. That&apos;s deliberate — they were finished in game, and
+                          nothing here deletes progress you didn&apos;t ask it to.
+                        </p>
+                      )}
                     </>
                   )}
                 </>

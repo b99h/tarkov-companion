@@ -14,7 +14,7 @@ import {
   duplicateTaskNames,
   taskNameQualifier,
   reconcileWithActiveList,
-  cascadeClearedCompletions,
+  clearImpact,
   normalizeMapName,
   compareAvailableQuests,
   kappaPriorityScore,
@@ -730,20 +730,20 @@ describe('inferPrerequisiteCompletions — active quests are never inferred done
   })
 })
 
-describe('reconcileWithActiveList — corroborated completions are not proposed for clearing', () => {
-  // The live Debtor case, reduced. Debtor showed up in the capture (3 clean OCR
-  // hits) while tracked complete, so plain reconciliation proposed clearing it —
-  // wrongly. Goals and Means was in that same capture, and is only reachable
-  // through a complete-only chain running back through Debtor, so Debtor is
-  // provably done and the capture is what's misleading (Tarkov keeps a finished
-  // quest listed until turn-in).
+describe('reconcileWithActiveList — the capture outranks the prerequisite graph', () => {
+  // The live Debtor case, and the reason the original corroboration rule was
+  // reversed. The graph says Debtor must be complete for Network Provider (and
+  // everything past it) to be finished. The game's own logs say otherwise: it
+  // logged Debtor STARTED 2026-05-31 with no finish, and logged Network
+  // Provider, Assessment 1-3 and Knock-Knock FINISHED over the following week.
+  // So the catalog's complete-only edge is not enforced by the live game, and a
+  // rule that let it veto the player's own quest list would defend a wrong
+  // record. Presence in the capture wins; the conflict is reported, not obeyed.
   const catalog: TaskData[] = [
     task({ id: 'debtor', name: 'Debtor' }),
     task({ id: 'ha1', name: 'House Arrest - Part 1', requiredTaskIds: ['debtor'] }),
     task({ id: 'np1', name: 'Network Provider - Part 1', requiredTaskIds: ['ha1'] }),
     task({ id: 'goals', name: 'Goals and Means', requiredTaskIds: ['np1'] }),
-    // No completion-demanding descendant: nothing settles it either way, so it
-    // stays a genuine mismatch for the user to judge (live: Hobby Club).
     task({ id: 'hobby', name: 'Hobby Club' })
   ]
   const prog: PlayerProgress = {
@@ -754,32 +754,25 @@ describe('reconcileWithActiveList — corroborated completions are not proposed 
     stationLevels: {}
   }
 
-  it('does not propose clearing a completion its active descendant proves', () => {
+  it('proposes clearing a captured quest even when the graph says it must be done', () => {
     const r = reconcileWithActiveList(['goals', 'debtor'], catalog, prog)
-    expect(r.toUncomplete).not.toContain('debtor')
-    expect(r.corroboratedUncomplete.map((c) => c.taskId)).toContain('debtor')
+    expect(r.toUncomplete).toContain('debtor')
   })
 
-  it('names the evidence rather than silently skipping the mismatch', () => {
+  it('reports the contradiction alongside it instead of hiding it', () => {
     const r = reconcileWithActiveList(['goals', 'debtor'], catalog, prog)
-    const entry = r.corroboratedUncomplete.find((c) => c.taskId === 'debtor')
-    expect(entry?.corroboratedBy).toEqual(expect.arrayContaining(['goals']))
+    const entry = r.uncompleteConflicts.find((c) => c.taskId === 'debtor')
+    expect(entry?.contradictedBy).toEqual(expect.arrayContaining(['np1', 'goals']))
   })
 
-  it('still proposes clearing a completion nothing downstream corroborates', () => {
+  it('flags no conflict when nothing downstream disagrees', () => {
     const r = reconcileWithActiveList(['goals', 'hobby'], catalog, prog)
     expect(r.toUncomplete).toContain('hobby')
-    expect(r.corroboratedUncomplete.map((c) => c.taskId)).not.toContain('hobby')
-  })
-
-  it('accepts an already-completed descendant as corroboration too', () => {
-    // Nothing but debtor is in the capture; np1 being tracked done still settles it.
-    const r = reconcileWithActiveList(['debtor'], catalog, prog)
-    expect(r.toUncomplete).not.toContain('debtor')
+    expect(r.uncompleteConflicts.map((c) => c.taskId)).not.toContain('hobby')
   })
 
   it('ignores descendants reached through an edge that accepts active or failed', () => {
-    // A dependant that would take Debtor failed proves nothing about it.
+    // Such an edge implies nothing about its prerequisite, so it is not a conflict.
     const loose: TaskData[] = [
       task({ id: 'debtor', name: 'Debtor' }),
       task({
@@ -792,11 +785,13 @@ describe('reconcileWithActiveList — corroborated completions are not proposed 
     const p: PlayerProgress = { ...prog, completedTaskIds: ['debtor', 'either'] }
     const r = reconcileWithActiveList(['debtor'], loose, p)
     expect(r.toUncomplete).toContain('debtor')
+    expect(r.uncompleteConflicts).toEqual([])
   })
 })
 
-describe('cascadeClearedCompletions', () => {
-  // Clearing Debtor cannot leave the chain it unlocked still marked done.
+describe('clearImpact', () => {
+  // Clearing Debtor must NOT touch the chain below it: on the live profile
+  // those ten quests were logged finished by the game itself.
   const catalog: TaskData[] = [
     task({ id: 'debtor', name: 'Debtor' }),
     task({ id: 'ha1', name: 'House Arrest - Part 1', requiredTaskIds: ['debtor'] }),
@@ -805,36 +800,35 @@ describe('cascadeClearedCompletions', () => {
   ]
   const completed = ['debtor', 'ha1', 'np1', 'unrelated']
 
-  it('clears everything downstream of the cleared completion', () => {
-    const r = cascadeClearedCompletions(['debtor'], catalog, completed)
+  it('reports the downstream completions without clearing them', () => {
+    const r = clearImpact(['debtor'], catalog, completed)
     expect(r.requested).toEqual(['debtor'])
-    expect(new Set(r.cascaded)).toEqual(new Set(['ha1', 'np1']))
-    expect(new Set(r.all)).toEqual(new Set(['debtor', 'ha1', 'np1']))
+    expect(new Set(r.orphaned)).toEqual(new Set(['ha1', 'np1']))
   })
 
-  it('leaves quests off the cleared quest’s chain alone', () => {
-    const r = cascadeClearedCompletions(['debtor'], catalog, completed)
-    expect(r.all).not.toContain('unrelated')
+  it('leaves quests off the chain out of the report', () => {
+    const r = clearImpact(['debtor'], catalog, completed)
+    expect(r.orphaned).not.toContain('unrelated')
   })
 
-  it('only cascades tracked completions — an unfinished descendant has nothing to clear', () => {
-    const r = cascadeClearedCompletions(['debtor'], catalog, ['debtor', 'ha1'])
-    expect(new Set(r.all)).toEqual(new Set(['debtor', 'ha1']))
+  it('only reports tracked completions — an unfinished descendant is not orphaned', () => {
+    const r = clearImpact(['debtor'], catalog, ['debtor', 'ha1'])
+    expect(r.orphaned).toEqual(['ha1'])
   })
 
-  it('does not double-count a descendant the user already asked to clear', () => {
-    const r = cascadeClearedCompletions(['debtor', 'ha1'], catalog, completed)
+  it('does not report a quest the user is already clearing', () => {
+    const r = clearImpact(['debtor', 'ha1'], catalog, completed)
     expect(new Set(r.requested)).toEqual(new Set(['debtor', 'ha1']))
-    expect(r.cascaded).toEqual(['np1'])
-    expect(r.all).toHaveLength(3)
+    expect(r.orphaned).toEqual(['np1'])
   })
 
   it('ignores ids that are not tracked as completed at all', () => {
-    const r = cascadeClearedCompletions(['debtor'], catalog, ['unrelated'])
-    expect(r.all).toEqual([])
+    const r = clearImpact(['debtor'], catalog, ['unrelated'])
+    expect(r.requested).toEqual([])
+    expect(r.orphaned).toEqual([])
   })
 
-  it('does not cascade through an edge that accepts a failed prerequisite', () => {
+  it('does not follow an edge that accepts a failed prerequisite', () => {
     const loose: TaskData[] = [
       task({ id: 'x', name: 'X' }),
       task({
@@ -844,8 +838,7 @@ describe('cascadeClearedCompletions', () => {
         requirements: [{ taskId: 'x', statuses: ['complete', 'failed'] }]
       })
     ]
-    const r = cascadeClearedCompletions(['x'], loose, ['x', 'y'])
-    expect(r.cascaded).toEqual([])
+    expect(clearImpact(['x'], loose, ['x', 'y']).orphaned).toEqual([])
   })
 
   it('terminates on a cyclic graph instead of hanging', () => {
@@ -853,7 +846,6 @@ describe('cascadeClearedCompletions', () => {
       task({ id: 'p', name: 'P', requiredTaskIds: ['q'] }),
       task({ id: 'q', name: 'Q', requiredTaskIds: ['p'] })
     ]
-    const r = cascadeClearedCompletions(['p'], cyclic, ['p', 'q'])
-    expect(new Set(r.all)).toEqual(new Set(['p', 'q']))
+    expect(clearImpact(['p'], cyclic, ['p', 'q']).orphaned).toEqual(['q'])
   })
 })
