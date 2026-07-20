@@ -2248,3 +2248,30 @@ body.overlay-body {
   font-weight: 400;
   white-space: nowrap;
 }
+
+/* Quest Catchup: draw the eye to an actionable step the user would otherwise
+   scroll past (the screenshot-reconciliation confirmation). */
+.settings-block.needs-attention {
+  border-left: 3px solid #e0a95f;
+}
+
+.section-badge {
+  margin-left: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #e0a95f;
+  color: #14151a;
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.callout {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(224, 169, 95, 0.12);
+  border: 1px solid rgba(224, 169, 95, 0.35);
+  color: #e8dcc8;
+  font-size: 13px;
+}

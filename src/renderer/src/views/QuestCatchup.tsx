@@ -298,13 +298,21 @@ export function QuestCatchup(): React.JSX.Element {
   // catching what upstream inference structurally can't: quests finished long
   // ago whose whole chain is done, so nothing active points back at them.
   // Active-tab only — the completed tab isn't the active list.
-  const reconciliationEnabled = mode === 'active' && fullListConfirmed
+  // Always computed once there's a capture to judge against, even before the
+  // completeness box is ticked: the *count* is what tells the user this step
+  // exists and is worth doing. Only whether its ids join the apply set depends
+  // on the confirmation. (Learned the hard way — a first live run applied 3
+  // inferred prereqs while 86 reconciliation candidates sat unticked below a
+  // long results list, and looked like the fix simply hadn't worked.)
   const reconciliation = useMemo(() => {
-    if (!reconciliationEnabled || !tasks || !progress) {
+    if (mode !== 'active' || !tasks || !progress || confirmedDetectedIds.length === 0) {
       return { toComplete: [] as string[], toUncomplete: [] as string[], activeButLocked: [] as string[] }
     }
     return reconcileWithActiveList(confirmedDetectedIds, tasks, progress)
-  }, [reconciliationEnabled, confirmedDetectedIds, tasks, progress])
+  }, [mode, confirmedDetectedIds, tasks, progress])
+
+  const reconciliationEnabled = mode === 'active' && fullListConfirmed
+  const reconcilableCount = reconciliation.toComplete.length + reconciliation.toUncomplete.length
 
   // Both directions default to checked (the capture is asserted complete);
   // every row is individually overridable before applying.
@@ -320,12 +328,12 @@ export function QuestCatchup(): React.JSX.Element {
   )
 
   const reconcileCompleteIds = useMemo(
-    () => reconciliation.toComplete.filter(isReconcileChecked),
-    [reconciliation, isReconcileChecked]
+    () => (reconciliationEnabled ? reconciliation.toComplete.filter(isReconcileChecked) : []),
+    [reconciliationEnabled, reconciliation, isReconcileChecked]
   )
   const reconcileUncompleteIds = useMemo(
-    () => reconciliation.toUncomplete.filter(isReconcileChecked),
-    [reconciliation, isReconcileChecked]
+    () => (reconciliationEnabled ? reconciliation.toUncomplete.filter(isReconcileChecked) : []),
+    [reconciliationEnabled, reconciliation, isReconcileChecked]
   )
 
   // Everything the Apply button will actually write: inferred prereqs in both
@@ -527,8 +535,25 @@ export function QuestCatchup(): React.JSX.Element {
       )}
 
       {rows && mode === 'active' && confirmedDetectedIds.length > 0 && (
-        <section className="settings-block">
-          <h2>Match my tracker to these screenshots</h2>
+        <section className={`settings-block${reconcilableCount > 0 && !fullListConfirmed ? ' needs-attention' : ''}`}>
+          <h2>
+            Match my tracker to these screenshots
+            {reconcilableCount > 0 && (
+              <span className="section-badge">{reconcilableCount} mismatch(es) found</span>
+            )}
+          </h2>
+          {reconcilableCount > 0 && !fullListConfirmed && (
+            <p className="callout">
+              <strong>
+                {reconciliation.toComplete.length} quest(s) look already-completed
+                {reconciliation.toUncomplete.length > 0 && (
+                  <> and {reconciliation.toUncomplete.length} look wrongly marked done</>
+                )}
+                .
+              </strong>{' '}
+              They stay untouched unless you confirm the capture is complete, just below.
+            </p>
+          )}
           <p className="hint">
             In Tarkov every unlocked quest stays in your task list, so a <em>complete</em> capture
             is the whole truth: anything tracked as available but missing from it must already be
@@ -547,7 +572,8 @@ export function QuestCatchup(): React.JSX.Element {
           {!fullListConfirmed ? (
             <p className="muted">
               Leave unticked if you only captured part of the list — a partial capture would look
-              like those quests are finished.
+              like those quests are finished. (This resets each time you re-run Find matches, so
+              it always refers to the screenshots you have now.)
             </p>
           ) : (
             <>
@@ -682,6 +708,13 @@ export function QuestCatchup(): React.JSX.Element {
                 ))}
               </div>
             </>
+          )}
+
+          {reconcilableCount > 0 && !reconciliationEnabled && (
+            <p className="callout">
+              Not including the <strong>{reconcilableCount} mismatch(es)</strong> found against
+              your screenshots — tick the confirmation in the section above to fix those too.
+            </p>
           )}
 
           <div className="button-row">
