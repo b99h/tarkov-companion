@@ -374,6 +374,10 @@ export function QuestBoard(): React.JSX.Element {
 
         const fullGroupTasks = fullGroups.get(groupKey) ?? []
         const fullCompletedCount = fullGroupTasks.filter((t) => t.status === 'completed').length
+        // Counted off the *unfiltered* group so the badge always states what you
+        // have in game, independent of the current search/status filters — which
+        // is what makes it checkable against the in-game trader screen.
+        const fullActiveCount = fullGroupTasks.filter((t) => t.status === 'available').length
 
         return (
           <section key={groupKey} className="trader-group">
@@ -383,6 +387,14 @@ export function QuestBoard(): React.JSX.Element {
               <span className="group-count">
                 {fullCompletedCount}/{fullGroupTasks.length}
               </span>
+              {fullActiveCount > 0 && (
+                <span
+                  className="group-active-count"
+                  title={`${fullActiveCount} quest(s) available now — should match what this trader shows in game`}
+                >
+                  {fullActiveCount} active
+                </span>
+              )}
             </h2>
 
             {!collapsed && (

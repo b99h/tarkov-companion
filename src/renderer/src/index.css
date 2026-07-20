@@ -2275,3 +2275,20 @@ body.overlay-body {
   color: #e8dcc8;
   font-size: 13px;
 }
+
+/* Per-trader count of quests available right now. Deliberately more prominent
+   than the completed ratio: it's the number you cross-check against the
+   trader's own screen in game, which is how tracker drift gets caught. */
+.group-active-count {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 9px;
+  background: rgba(125, 174, 125, 0.16);
+  border: 1px solid rgba(125, 174, 125, 0.4);
+  color: #7fca7f;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  cursor: help;
+}
