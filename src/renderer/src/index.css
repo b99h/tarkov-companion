@@ -447,6 +447,12 @@ main {
   color: #8d8f96;
 }
 
+.chain-count {
+  display: block;
+  font-size: 11px;
+  color: #6f717a;
+}
+
 .chain-empty {
   font-size: 12px;
   color: #6f717a;

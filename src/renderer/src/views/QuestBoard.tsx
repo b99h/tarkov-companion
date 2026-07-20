@@ -195,8 +195,15 @@ export function QuestBoard(): React.JSX.Element {
         completed: completed.has(id)
       })
       const byName = (a: RelatedQuest, b: RelatedQuest): number => a.name.localeCompare(b.name)
+      // Prerequisites sort outstanding-first: on a long chain the unfinished
+      // ones are the only actionable entries, and Collector alone lists 69, so
+      // alphabetical order buries the handful that matter.
+      const outstandingFirst = (a: RelatedQuest, b: RelatedQuest): number =>
+        a.completed === b.completed ? byName(a, b) : a.completed ? 1 : -1
       return {
-        prerequisites: (tasksById.get(taskId)?.requiredTaskIds ?? []).map(toRelated).sort(byName),
+        prerequisites: (tasksById.get(taskId)?.requiredTaskIds ?? [])
+          .map(toRelated)
+          .sort(outstandingFirst),
         unlocks: (dependents.get(taskId) ?? []).map(toRelated).sort(byName)
       }
     },
@@ -723,9 +730,20 @@ function ChainRow({
   showState?: boolean
   onJumpTo: (taskId: string) => void
 }): React.JSX.Element {
+  // On a long prerequisite list (Collector: 69) the useful figure is how many
+  // are still outstanding, not the total.
+  const outstanding = showState ? quests.filter((q) => !q.completed).length : 0
+
   return (
     <div className="chain-row">
-      <span className="chain-label">{label}</span>
+      <span className="chain-label">
+        {label}
+        {showState && quests.length > 1 && (
+          <span className="chain-count">
+            {outstanding > 0 ? `${outstanding} left` : 'all done'}
+          </span>
+        )}
+      </span>
       {quests.length === 0 ? (
         <span className="chain-empty">{empty}</span>
       ) : (
