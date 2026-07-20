@@ -529,6 +529,67 @@ export function inferPrerequisiteCompletions(
   return { completed: [...completed], uncertain: [...uncertain] }
 }
 
+export interface ActiveListReconciliation {
+  /**
+   * Tracked as available but absent from a complete active list — in Tarkov an
+   * unlocked quest is always listed, so its absence means it's already done.
+   */
+  toComplete: string[]
+  /** Tracked as completed yet present in the active list — the record is wrong. */
+  toUncomplete: string[]
+  /**
+   * Present in the active list but tracked as locked: some upstream completion
+   * is missing from our records. Reported for review rather than acted on, since
+   * the fix is upstream (prerequisite inference), not on this task itself.
+   */
+  activeButLocked: string[]
+}
+
+/**
+ * Reconcile tracked progress against a capture of the player's **complete**
+ * in-game active quest list, treating the screenshots as ground truth.
+ *
+ * This closes the structural gap that plain prerequisite inference can't reach
+ * (confirmed live on a real profile: 83 quests were tracked "available" that
+ * the player had long since finished, because inference only ever walks
+ * upstream of *active* quests and never sees a finished side-chain).
+ *
+ * **Only sound when `seenTaskIds` covers the entire list.** A partial capture
+ * makes genuinely-active quests look absent, and they'd be proposed for
+ * completion — hence the caller gates this behind an explicit confirmation and
+ * a review step. Level-locked tasks are deliberately excluded from
+ * `toComplete`: they're missing from the player's list because of their level
+ * gate, not because they're finished.
+ */
+export function reconcileWithActiveList(
+  seenTaskIds: string[],
+  tasks: TaskData[],
+  progress: PlayerProgress
+): ActiveListReconciliation {
+  const seen = new Set(seenTaskIds)
+  // Other-faction quests can never appear in this character's list; judging
+  // them against it would propose completing every one of them.
+  const playable = tasks.filter(
+    (t) => t.factionName === 'Any' || t.factionName === progress.faction
+  )
+  const states = deriveTaskStates(playable, progress)
+
+  const toComplete: string[] = []
+  const toUncomplete: string[] = []
+  const activeButLocked: string[] = []
+
+  for (const task of states) {
+    const isSeen = seen.has(task.id)
+    if (task.status === 'available' && !isSeen) toComplete.push(task.id)
+    else if (task.status === 'completed' && isSeen) toUncomplete.push(task.id)
+    else if (isSeen && (task.status === 'locked' || task.status === 'level-locked')) {
+      activeButLocked.push(task.id)
+    }
+  }
+
+  return { toComplete, toUncomplete, activeButLocked }
+}
+
 /** Case/whitespace/punctuation-insensitive normalization for OCR text matching. */
 function normalizeForMatch(text: string): string {
   return text

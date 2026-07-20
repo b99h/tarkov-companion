@@ -36,6 +36,8 @@ const api: AppApi = {
   setTaskCompleted: (taskId, completed) =>
     ipcRenderer.invoke('progress:setTaskCompleted', taskId, completed),
   setTasksCompleted: (taskIds) => ipcRenderer.invoke('progress:setTasksCompleted', taskIds),
+  applyBulkCompletion: (completeIds, uncompleteIds) =>
+    ipcRenderer.invoke('progress:applyBulkCompletion', completeIds, uncompleteIds),
   setPlayerLevel: (level) => ipcRenderer.invoke('progress:setPlayerLevel', level),
   setFaction: (faction) => ipcRenderer.invoke('progress:setFaction', faction),
   setStationLevel: (stationNorm, level) =>

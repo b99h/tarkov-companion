@@ -3,7 +3,8 @@ import { useAppData } from '../state/AppDataContext'
 import {
   compareTraders,
   inferPrerequisiteCompletions,
-  matchOcrLinesToTasks
+  matchOcrLinesToTasks,
+  reconcileWithActiveList
 } from '@shared/questEngine'
 import type { OcrMatch, ScreenshotCapture, TaskData } from '@shared/types'
 
@@ -27,7 +28,9 @@ interface DetectedQuest {
 }
 
 export function QuestCatchup(): React.JSX.Element {
-  const { tasks, progress, bulkCompleteTasks } = useAppData()
+  // applyBulkCompletion covers both directions, so it replaces bulkCompleteTasks
+  // here — the add-only helper stays for other callers.
+  const { tasks, progress, applyBulkCompletion } = useAppData()
 
   const [mode, setMode] = useState<CatchupMode>('active')
   const [screenshots, setScreenshots] = useState<ScreenshotCapture[]>([])
@@ -50,6 +53,12 @@ export function QuestCatchup(): React.JSX.Element {
   const [prereqOverrides, setPrereqOverrides] = useState<Record<string, boolean>>({})
   const [applying, setApplying] = useState(false)
   const [appliedCount, setAppliedCount] = useState<number | null>(null)
+
+  // Screenshot reconciliation (Phase 13): only sound when the captures cover
+  // the player's *entire* active list, so it's opt-in per session and off by
+  // default — a partial capture would propose completing still-active quests.
+  const [fullListConfirmed, setFullListConfirmed] = useState(false)
+  const [reconcileOverrides, setReconcileOverrides] = useState<Record<string, boolean>>({})
 
   const addScreenshot = useCallback(async () => {
     setCaptureError(null)
@@ -85,6 +94,8 @@ export function QuestCatchup(): React.JSX.Element {
       setExcludedDetectedIds(new Set())
       setAmbiguousSelections({})
       setPrereqOverrides({})
+      setReconcileOverrides({})
+      setFullListConfirmed(false)
       setAppliedCount(null)
       return next
     })
@@ -151,6 +162,11 @@ export function QuestCatchup(): React.JSX.Element {
     setExcludedDetectedIds(new Set())
     setAmbiguousSelections({})
     setPrereqOverrides({})
+    setReconcileOverrides({})
+    // Re-confirm every run: the assertion is about *this* set of screenshots,
+    // and leaving it ticked would silently carry it over to a set the user has
+    // since added to — exactly the partial-capture case it exists to prevent.
+    setFullListConfirmed(false)
     setAppliedCount(null)
   }, [screenshots, tasks, progress, captureArmed])
 
@@ -278,24 +294,69 @@ export function QuestCatchup(): React.JSX.Element {
     [prereqIds, isPrereqChecked]
   )
 
+  // Reconciliation treats a complete active-list capture as ground truth,
+  // catching what upstream inference structurally can't: quests finished long
+  // ago whose whole chain is done, so nothing active points back at them.
+  // Active-tab only — the completed tab isn't the active list.
+  const reconciliationEnabled = mode === 'active' && fullListConfirmed
+  const reconciliation = useMemo(() => {
+    if (!reconciliationEnabled || !tasks || !progress) {
+      return { toComplete: [] as string[], toUncomplete: [] as string[], activeButLocked: [] as string[] }
+    }
+    return reconcileWithActiveList(confirmedDetectedIds, tasks, progress)
+  }, [reconciliationEnabled, confirmedDetectedIds, tasks, progress])
+
+  // Both directions default to checked (the capture is asserted complete);
+  // every row is individually overridable before applying.
+  const isReconcileChecked = useCallback(
+    (id: string): boolean => reconcileOverrides[id] ?? true,
+    [reconcileOverrides]
+  )
+  const toggleReconcile = useCallback(
+    (id: string) => {
+      setReconcileOverrides((prev) => ({ ...prev, [id]: !(prev[id] ?? true) }))
+    },
+    []
+  )
+
+  const reconcileCompleteIds = useMemo(
+    () => reconciliation.toComplete.filter(isReconcileChecked),
+    [reconciliation, isReconcileChecked]
+  )
+  const reconcileUncompleteIds = useMemo(
+    () => reconciliation.toUncomplete.filter(isReconcileChecked),
+    [reconciliation, isReconcileChecked]
+  )
+
   // Everything the Apply button will actually write: inferred prereqs in both
-  // modes, plus the detected quests themselves on the completed tab.
+  // modes, the detected quests themselves on the completed tab, plus whatever
+  // reconciliation proposes.
   const willMarkIds = useMemo(
-    () => [...new Set([...directMarkIds, ...includedPrereqIds])],
-    [directMarkIds, includedPrereqIds]
+    () => [...new Set([...directMarkIds, ...includedPrereqIds, ...reconcileCompleteIds])],
+    [directMarkIds, includedPrereqIds, reconcileCompleteIds]
+  )
+
+  // A quest the player has active must not be marked completed by inference in
+  // the same apply that reconciliation is clearing it — removals win.
+  const willUnmarkIds = useMemo(
+    () => reconcileUncompleteIds,
+    [reconcileUncompleteIds]
   )
 
   const apply = useCallback(async () => {
     setApplying(true)
     try {
-      await bulkCompleteTasks(willMarkIds)
-      setAppliedCount(willMarkIds.length)
+      const unmarkSet = new Set(willUnmarkIds)
+      const marks = willMarkIds.filter((id) => !unmarkSet.has(id))
+      await applyBulkCompletion(marks, willUnmarkIds)
+      setAppliedCount(marks.length + willUnmarkIds.length)
       setRows(null)
       setScreenshots([])
+      setFullListConfirmed(false)
     } finally {
       setApplying(false)
     }
-  }, [bulkCompleteTasks, willMarkIds])
+  }, [applyBulkCompletion, willMarkIds, willUnmarkIds])
 
   if (!tasks || !progress) return <div className="settings">Loading…</div>
 
@@ -465,9 +526,115 @@ export function QuestCatchup(): React.JSX.Element {
         </section>
       )}
 
+      {rows && mode === 'active' && confirmedDetectedIds.length > 0 && (
+        <section className="settings-block">
+          <h2>Match my tracker to these screenshots</h2>
+          <p className="hint">
+            In Tarkov every unlocked quest stays in your task list, so a <em>complete</em> capture
+            is the whole truth: anything tracked as available but missing from it must already be
+            done, and anything tracked as done but sitting in your list clearly isn&apos;t. This
+            catches quests whose entire chain is finished — nothing active points back at them, so
+            prerequisite inference alone can never find them.
+          </p>
+          <label className="checkbox-row">
+            <input
+              type="checkbox"
+              checked={fullListConfirmed}
+              onChange={(e) => setFullListConfirmed(e.target.checked)}
+            />
+            These screenshots cover my <strong>entire</strong> active task list, top to bottom
+          </label>
+          {!fullListConfirmed ? (
+            <p className="muted">
+              Leave unticked if you only captured part of the list — a partial capture would look
+              like those quests are finished.
+            </p>
+          ) : (
+            <>
+              {reconciliation.toComplete.length === 0 && reconciliation.toUncomplete.length === 0 ? (
+                <p className="muted">
+                  Nothing to reconcile — your tracker already matches the captured list.
+                </p>
+              ) : (
+                <>
+                  {reconciliation.toComplete.length > 0 && (
+                    <>
+                      <h3 className="catchup-subheading">
+                        Not in your list → mark completed ({reconcileCompleteIds.length}/
+                        {reconciliation.toComplete.length})
+                      </h3>
+                      <div className="session-list">
+                        {reconciliation.toComplete.map((id) => {
+                          const t = tasksById.get(id)
+                          if (!t) return null
+                          return (
+                            <label key={id} className="session-row">
+                              <input
+                                type="checkbox"
+                                checked={isReconcileChecked(id)}
+                                onChange={() => toggleReconcile(id)}
+                              />
+                              <span className="session-name">
+                                {t.kappaRequired && <span className="kappa-star">★</span>}
+                                {t.name}
+                                <span className="muted"> · {t.trader}</span>
+                              </span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </>
+                  )}
+
+                  {reconciliation.toUncomplete.length > 0 && (
+                    <>
+                      <h3 className="catchup-subheading">
+                        Active in your list → clear the completed mark (
+                        {reconcileUncompleteIds.length}/{reconciliation.toUncomplete.length})
+                      </h3>
+                      <div className="session-list">
+                        {reconciliation.toUncomplete.map((id) => {
+                          const t = tasksById.get(id)
+                          if (!t) return null
+                          return (
+                            <label key={id} className="session-row">
+                              <input
+                                type="checkbox"
+                                checked={isReconcileChecked(id)}
+                                onChange={() => toggleReconcile(id)}
+                              />
+                              <span className="session-name">
+                                {t.kappaRequired && <span className="kappa-star">★</span>}
+                                {t.name}
+                                <span className="muted"> · {t.trader} · tracked as done, but you have it active</span>
+                              </span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+
+              {reconciliation.activeButLocked.length > 0 && (
+                <p className="hint">
+                  {reconciliation.activeButLocked.length} captured quest(s) are tracked as{' '}
+                  <em>locked</em> — something upstream is missing from your records. The inferred
+                  prerequisites below should resolve them; nothing is changed on these directly.
+                </p>
+              )}
+            </>
+          )}
+        </section>
+      )}
+
       {rows && confirmedDetectedIds.length > 0 && (
         <section className="settings-block">
-          <h2>Will mark {willMarkIds.length} quest(s) completed</h2>
+          <h2>
+            Will mark {willMarkIds.length} completed
+            {willUnmarkIds.length > 0 && <> and clear {willUnmarkIds.length}</>}
+          </h2>
           {mode === 'completed' && (
             <p className="hint">
               {directMarkIds.length} recognized quest(s) from the completed tab will be marked
@@ -518,8 +685,15 @@ export function QuestCatchup(): React.JSX.Element {
           )}
 
           <div className="button-row">
-            <button onClick={apply} disabled={applying || willMarkIds.length === 0}>
-              {applying ? 'Applying…' : `Mark ${willMarkIds.length} quest(s) completed`}
+            <button
+              onClick={apply}
+              disabled={applying || (willMarkIds.length === 0 && willUnmarkIds.length === 0)}
+            >
+              {applying
+                ? 'Applying…'
+                : willUnmarkIds.length > 0
+                  ? `Apply: ${willMarkIds.length} completed, ${willUnmarkIds.length} cleared`
+                  : `Mark ${willMarkIds.length} quest(s) completed`}
             </button>
           </div>
         </section>

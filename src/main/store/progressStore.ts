@@ -50,9 +50,25 @@ export function setTaskCompleted(taskId: string, completed: boolean): PlayerProg
  * `applyTaskEvents` below, rather than looping the single-id setter).
  */
 export function setTasksCompleted(taskIds: string[]): PlayerProgress {
+  return applyBulkCompletion(taskIds, [])
+}
+
+/**
+ * Bulk completion edit in both directions, in one load/save cycle — the write
+ * behind Quest Catchup's screenshot reconciliation, which both marks
+ * long-finished quests done and clears completions that turned out to be wrong
+ * (a quest the player actually has active). Removals are applied after
+ * additions so an id in both lists ends up *not* completed; that only happens
+ * on a caller bug, and leaving it uncompleted is the recoverable direction.
+ */
+export function applyBulkCompletion(
+  completeIds: string[],
+  uncompleteIds: string[]
+): PlayerProgress {
   const progress = loadProgress()
   const set = new Set(progress.completedTaskIds)
-  for (const id of taskIds) set.add(id)
+  for (const id of completeIds) set.add(id)
+  for (const id of uncompleteIds) set.delete(id)
   const updated = { ...progress, completedTaskIds: [...set] }
   saveProgress(updated)
   return updated

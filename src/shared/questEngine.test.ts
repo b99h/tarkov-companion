@@ -13,6 +13,7 @@ import {
   normalizeFaction,
   duplicateTaskNames,
   taskNameQualifier,
+  reconcileWithActiveList,
   normalizeMapName,
   compareAvailableQuests,
   kappaPriorityScore,
@@ -611,5 +612,53 @@ describe('duplicateTaskNames / taskNameQualifier', () => {
     const b = task({ id: 'a2', name: 'Twin' })
     const dupes = duplicateTaskNames([a, b])
     expect(taskNameQualifier(a, dupes, new Map())).toBeNull()
+  })
+})
+
+describe('reconcileWithActiveList', () => {
+  // A: available + unseen -> already done. B: completed + seen -> record wrong.
+  // C: seen but locked -> upstream gap. Plus the two exclusion rules.
+  const catalog: TaskData[] = [
+    task({ id: 'done-invisible', name: 'Finished Side Chain' }),
+    task({ id: 'really-active', name: 'Really Active' }),
+    task({ id: 'wrongly-done', name: 'Wrongly Marked Done' }),
+    task({ id: 'gated', name: 'Level Gated', minPlayerLevel: 40 }),
+    task({ id: 'blocked', name: 'Blocked', requiredTaskIds: ['really-active'] }),
+    task({ id: 'other-faction', name: 'Bear Only', factionName: 'Bear' })
+  ]
+  const prog: PlayerProgress = {
+    completedTaskIds: ['wrongly-done'],
+    failedTaskIds: [],
+    playerLevel: 20,
+    faction: 'Usec',
+    stationLevels: {}
+  }
+
+  it('proposes completing available quests absent from a complete list', () => {
+    const r = reconcileWithActiveList(['really-active', 'wrongly-done'], catalog, prog)
+    expect(r.toComplete).toContain('done-invisible')
+    expect(r.toComplete).not.toContain('really-active')
+  })
+
+  it('proposes un-completing a tracked-done quest that is actually active', () => {
+    const r = reconcileWithActiveList(['really-active', 'wrongly-done'], catalog, prog)
+    expect(r.toUncomplete).toEqual(['wrongly-done'])
+  })
+
+  it('reports a seen-but-locked quest instead of silently acting on it', () => {
+    const r = reconcileWithActiveList(['blocked'], catalog, prog)
+    expect(r.activeButLocked).toEqual(['blocked'])
+    expect(r.toComplete).not.toContain('blocked')
+  })
+
+  it('never proposes completing a level-locked quest (absent due to level, not completion)', () => {
+    const r = reconcileWithActiveList([], catalog, prog)
+    expect(r.toComplete).not.toContain('gated')
+  })
+
+  it('ignores other-faction quests entirely', () => {
+    const r = reconcileWithActiveList([], catalog, prog)
+    expect(r.toComplete).not.toContain('other-faction')
+    expect(r.activeButLocked).not.toContain('other-faction')
   })
 })

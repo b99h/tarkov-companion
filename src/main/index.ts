@@ -20,6 +20,7 @@ import {
   loadProgress,
   setTaskCompleted,
   setTasksCompleted,
+  applyBulkCompletion,
   setPlayerLevel,
   setFaction,
   setStationLevel,
@@ -247,6 +248,20 @@ function registerIpcHandlers(): void {
     }
     return setTasksCompleted(taskIds)
   })
+  ipcMain.handle(
+    'progress:applyBulkCompletion',
+    (_e, completeIds: unknown, uncompleteIds: unknown) => {
+      if (
+        !Array.isArray(completeIds) ||
+        !completeIds.every(isValidTaskId) ||
+        !Array.isArray(uncompleteIds) ||
+        !uncompleteIds.every(isValidTaskId)
+      ) {
+        throw new Error('applyBulkCompletion: invalid task ids')
+      }
+      return applyBulkCompletion(completeIds, uncompleteIds)
+    }
+  )
   ipcMain.handle('progress:setPlayerLevel', (_e, level: unknown) =>
     setPlayerLevel(clampPlayerLevel(level))
   )

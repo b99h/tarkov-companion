@@ -9,6 +9,8 @@ interface AppDataValue {
   error: string | null
   toggleTask: (taskId: string, completed: boolean) => Promise<void>
   bulkCompleteTasks: (taskIds: string[]) => Promise<void>
+  /** Bulk completion edit in both directions, for screenshot reconciliation. */
+  applyBulkCompletion: (completeIds: string[], uncompleteIds: string[]) => Promise<void>
   updatePlayerLevel: (level: number) => Promise<void>
   updateFaction: (faction: Faction) => Promise<void>
   /** Records one hideout station's built level (Phase 8), keyed by normalizedName. */
@@ -59,6 +61,15 @@ export function AppDataProvider({ children }: { children: ReactNode }): React.JS
     setProgress(updated)
   }, [])
 
+  const applyBulkCompletion = useCallback(
+    async (completeIds: string[], uncompleteIds: string[]) => {
+      if (completeIds.length === 0 && uncompleteIds.length === 0) return
+      const updated = await window.api.applyBulkCompletion(completeIds, uncompleteIds)
+      setProgress(updated)
+    },
+    []
+  )
+
   const updatePlayerLevel = useCallback(async (level: number) => {
     const updated = await window.api.setPlayerLevel(level)
     setProgress(updated)
@@ -88,6 +99,7 @@ export function AppDataProvider({ children }: { children: ReactNode }): React.JS
         error,
         toggleTask,
         bulkCompleteTasks,
+        applyBulkCompletion,
         updatePlayerLevel,
         updateFaction,
         updateStationLevel,

@@ -47,6 +47,14 @@ export interface AppApi {
   setTaskCompleted: (taskId: string, completed: boolean) => Promise<PlayerProgress>
   /** Bulk-completes many tasks in one write, for the Quest Catchup flow. */
   setTasksCompleted: (taskIds: string[]) => Promise<PlayerProgress>
+  /**
+   * Bulk completion edit in both directions, for Quest Catchup's screenshot
+   * reconciliation (mark long-finished quests done; clear wrong completions).
+   */
+  applyBulkCompletion: (
+    completeIds: string[],
+    uncompleteIds: string[]
+  ) => Promise<PlayerProgress>
   setPlayerLevel: (level: number) => Promise<PlayerProgress>
   setFaction: (faction: Faction) => Promise<PlayerProgress>
   /** Sets one hideout station's built level (0 = unbuilt), keyed by normalizedName. */
