@@ -2239,3 +2239,12 @@ body.overlay-body {
 .overlay-panel p {
   margin: 2px 0;
 }
+
+/* Distinguishes same-name-different-quest rows (e.g. Mechanic's 3× "Make Amends"). */
+.quest-name-qualifier {
+  margin-left: 8px;
+  color: #9aa0ab;
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+}

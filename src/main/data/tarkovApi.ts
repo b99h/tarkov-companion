@@ -11,6 +11,7 @@ import type {
   AmmoData,
   HideoutStationData
 } from '../../shared/types'
+import { normalizeFaction } from '../../shared/questEngine'
 
 const ENDPOINT = 'https://api.tarkov.dev/graphql'
 
@@ -52,8 +53,8 @@ async function graphql<T>(query: string): Promise<T> {
 // which we fold into the plottable positions for the map view.
 const ZONE_FIELDS = `zones { map { name normalizedName } position { x y z } top bottom }`
 
-const TASKS_QUERY = `{
-  tasks(lang: en) {
+const tasksQuery = (mode: GameMode): string => `{
+  tasks(lang: en, gameMode: ${mode}) {
     id
     name
     minPlayerLevel
@@ -153,11 +154,6 @@ function mapObjectiveZones(o: RawTask['objectives'][number]): TaskData['objectiv
   return out
 }
 
-function normalizeFaction(raw: string | null): TaskData['factionName'] {
-  if (raw === 'Usec' || raw === 'Bear') return raw
-  return 'Any'
-}
-
 const KNOWN_REQ_STATUSES: TaskRequirementStatus[] = ['complete', 'failed', 'active']
 
 /**
@@ -172,8 +168,13 @@ function normalizeReqStatuses(raw: string[] | null): TaskRequirementStatus[] {
   return valid.length > 0 ? valid : ['complete']
 }
 
-export async function fetchTasks(): Promise<TaskData[]> {
-  const data = await graphql<{ tasks: RawTask[] }>(TASKS_QUERY)
+/**
+ * The task catalog differs per game mode — PvE currently has 506 tasks to PvP's
+ * 510, and PvP-only entries (e.g. all four "Neuanfang" copies) would otherwise
+ * appear in a PvE player's tracker as quests that don't exist in their game.
+ */
+export async function fetchTasks(mode: GameMode): Promise<TaskData[]> {
+  const data = await graphql<{ tasks: RawTask[] }>(tasksQuery(mode))
 
   return data.tasks.map((t) => ({
     id: t.id,

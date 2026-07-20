@@ -1,4 +1,5 @@
 import type {
+  Faction,
   TaskData,
   TaskRequirement,
   TaskWithStatus,
@@ -29,6 +30,28 @@ export const TRADER_ORDER = [
   'Ref',
   'Fence'
 ]
+
+/**
+ * Map tarkov.dev's raw `factionName` onto our `Faction` union.
+ *
+ * The API reports faction-locked tasks as **`'USEC'`/`'BEAR'`** (uppercase),
+ * not the `'Usec'`/`'Bear'` casing used internally — an exact-case comparison
+ * silently mapped all 12 faction-specific tasks to `'Any'`. That showed both
+ * faction twins side by side on the quest board (the reported "Drip-Out -
+ * Part 1 twice under Ragman" duplicates) and quietly no-op'd Quest Catchup's
+ * faction filter, which had looked like it worked since Phase 4.5. Hence the
+ * case-insensitive comparison, and the regression test alongside it.
+ */
+export function normalizeFaction(raw: string | null): Faction {
+  switch (raw?.toLowerCase()) {
+    case 'usec':
+      return 'Usec'
+    case 'bear':
+      return 'Bear'
+    default:
+      return 'Any'
+  }
+}
 
 const TRADER_RANK = new Map(TRADER_ORDER.map((name, i) => [name.toLowerCase(), i]))
 
@@ -178,6 +201,40 @@ export function deriveTaskStates(tasks: TaskData[], progress: PlayerProgress): T
     ...task,
     ...deriveStatus(task, progress, completedSet, failedSet, isSatisfiable)
   }))
+}
+
+/**
+ * Names shared by more than one task in a list — rendered identically, these
+ * read as duplicate rows even though they're distinct quests.
+ *
+ * Tarkov genuinely ships several same-name quests that are *different* quests:
+ * "Make Amends" exists three times under Mechanic, each unlocked by a different
+ * upstream branch (Equipment / Sweep Up / Quarantine), and BTR Driver has two
+ * "Battery Change" variants. (Faction twins like Drip-Out are a separate case,
+ * handled by filtering the other faction out entirely.)
+ */
+export function duplicateTaskNames(tasks: { name: string }[]): Set<string> {
+  const counts = new Map<string, number>()
+  for (const task of tasks) counts.set(task.name, (counts.get(task.name) ?? 0) + 1)
+  return new Set([...counts].filter(([, count]) => count > 1).map(([name]) => name))
+}
+
+/**
+ * A short qualifier distinguishing one same-name quest from its twins, built
+ * from the prerequisites that gate it (the only thing that actually differs).
+ * Returns null when the name isn't ambiguous or nothing useful can be resolved,
+ * so the common case renders unchanged.
+ */
+export function taskNameQualifier(
+  task: TaskData,
+  duplicateNames: Set<string>,
+  nameById: Map<string, string>
+): string | null {
+  if (!duplicateNames.has(task.name)) return null
+  const prereqs = task.requiredTaskIds
+    .map((id) => nameById.get(id))
+    .filter((name): name is string => Boolean(name))
+  return prereqs.length > 0 ? `after ${prereqs.join(' + ')}` : null
 }
 
 /** The unique set of map names a task has objectives on. Turn-in-only tasks return []. */

@@ -8,7 +8,9 @@ import {
   compareTraders,
   compareMaps,
   normalizeMapName,
-  compareAvailableQuests
+  compareAvailableQuests,
+  duplicateTaskNames,
+  taskNameQualifier
 } from '@shared/questEngine'
 import type { QuestSortMode } from '@shared/questEngine'
 import type { TaskStatus, TaskWithStatus } from '@shared/types'
@@ -24,13 +26,9 @@ const STATUS_LABEL: Record<TaskStatus, string> = {
   'faction-locked': 'Faction locked'
 }
 
-const STATUS_FILTER_OPTIONS: TaskStatus[] = [
-  'available',
-  'level-locked',
-  'locked',
-  'faction-locked',
-  'completed'
-]
+// No 'faction-locked' chip: other-faction quests are filtered out of the board
+// entirely (see the `states` memo), so the chip could only ever match nothing.
+const STATUS_FILTER_OPTIONS: TaskStatus[] = ['available', 'level-locked', 'locked', 'completed']
 
 const NO_MAP_BUCKET = 'No specific map'
 
@@ -130,11 +128,34 @@ export function QuestBoard(): React.JSX.Element {
 
   const rowRefs = useRef<Map<string, HTMLLIElement>>(new Map())
 
-  const states = useMemo(() => (tasks && progress ? deriveTaskStates(tasks, progress) : []), [
-    tasks,
-    progress
-  ])
+  // Quests belonging to the *other* faction can never be done on this
+  // character, so they're dropped entirely rather than shown as "Faction
+  // locked". Tarkov ships several quests as BEAR/USEC twins under one name
+  // (Drip-Out, Textile), and listing both made the board show the same quest
+  // twice — once Available, once locked — which read as a duplicate bug.
+  //
+  // Filtered on `factionName`, NOT on the derived `faction-locked` status: the
+  // status derivation reports a prerequisite lock in preference to a faction
+  // mismatch, so an other-faction quest with unmet prereqs surfaces as plain
+  // `locked` and a status-based filter would leak it back in.
+  const states = useMemo(() => {
+    if (!tasks || !progress) return []
+    const playable = tasks.filter(
+      (t) => t.factionName === 'Any' || t.factionName === progress.faction
+    )
+    return deriveTaskStates(playable, progress)
+  }, [tasks, progress])
   const tasksById = useMemo(() => new Map(states.map((t) => [t.id, t])), [states])
+
+  // Same-name-different-quest disambiguation (e.g. Mechanic's three "Make
+  // Amends"). Names resolve against the *full* catalog, not the faction-
+  // filtered board list, so a qualifier never comes up blank because the
+  // prerequisite happens to be filtered out of view.
+  const duplicateNames = useMemo(() => duplicateTaskNames(states), [states])
+  const allTaskNameById = useMemo(
+    () => new Map((tasks ?? []).map((t) => [t.id, t.name])),
+    [tasks]
+  )
   const dependents = useMemo(() => (tasks ? buildDependentsMap(tasks) : new Map()), [tasks])
 
   // Precompute downstream-Kappa counts once per render instead of running a
@@ -382,6 +403,7 @@ export function QuestBoard(): React.JSX.Element {
                         else rowRefs.current.delete(task.id)
                       }}
                       downstreamKappa={downstreamKappaByTask.get(task.id) ?? 0}
+                      nameQualifier={taskNameQualifier(task, duplicateNames, allTaskNameById)}
                       blockedByNames={task.blockedByTaskIds.map(
                         (id) => tasksById.get(id)?.name ?? id
                       )}
@@ -417,6 +439,7 @@ export function QuestBoard(): React.JSX.Element {
                               else rowRefs.current.delete(task.id)
                             }}
                             downstreamKappa={downstreamKappaByTask.get(task.id) ?? 0}
+                            nameQualifier={taskNameQualifier(task, duplicateNames, allTaskNameById)}
                             blockedByNames={task.blockedByTaskIds.map(
                               (id) => tasksById.get(id)?.name ?? id
                             )}
@@ -453,6 +476,7 @@ export function QuestBoard(): React.JSX.Element {
                               else rowRefs.current.delete(task.id)
                             }}
                             downstreamKappa={downstreamKappaByTask.get(task.id) ?? 0}
+                            nameQualifier={taskNameQualifier(task, duplicateNames, allTaskNameById)}
                             blockedByNames={[]}
                           />
                         ))}
@@ -480,6 +504,8 @@ interface QuestRowProps {
   rowRef: (el: HTMLLIElement | null) => void
   downstreamKappa: number
   blockedByNames: string[]
+  /** Distinguishes same-name-different-quest rows (e.g. Mechanic's 3× "Make Amends"). */
+  nameQualifier: string | null
   trackedOnMap?: boolean
   onToggleMapTracking?: () => void
 }
@@ -495,6 +521,7 @@ function QuestRow({
   rowRef,
   downstreamKappa,
   blockedByNames,
+  nameQualifier,
   trackedOnMap,
   onToggleMapTracking
 }: QuestRowProps): React.JSX.Element {
@@ -516,6 +543,11 @@ function QuestRow({
         <span className="quest-name" onClick={onToggleDetail}>
           {task.kappaRequired && <span className="kappa-star" title="Required for Kappa">★</span>}
           <Highlight text={task.name} query={query} />
+          {nameQualifier && (
+            <span className="quest-name-qualifier" title={`Distinct quest — unlocked ${nameQualifier}`}>
+              {nameQualifier}
+            </span>
+          )}
         </span>
         <span className="quest-level">Lvl {task.minPlayerLevel}</span>
         {onToggleMapTracking && (

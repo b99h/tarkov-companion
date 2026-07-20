@@ -179,7 +179,7 @@ async function initWatcher(): Promise<void> {
 
   // Seeds the task catalog, retrying internally if the fetch fails (offline, no
   // cache) so live quest events aren't dropped silently until an app restart.
-  await watcher.seedTasks(getTasks)
+  await watcher.seedTasks(() => getTasks(loadSettings().profile))
 
   if (loadSettings().autoWatch) {
     watcher.start()
@@ -199,7 +199,7 @@ function applyLaunchAtStartup(enabled: boolean): void {
 function registerIpcHandlers(): void {
   ipcMain.handle('app:getVersion', () => app.getVersion())
 
-  ipcMain.handle('data:getTasks', () => getTasks())
+  ipcMain.handle('data:getTasks', () => getTasks(loadSettings().profile))
   ipcMain.handle('data:getItems', () => getItems(loadSettings().profile))
   ipcMain.handle('data:getMaps', () => getMaps())
   ipcMain.handle('data:getMapProjections', () => getMapProjections())
@@ -222,7 +222,7 @@ function registerIpcHandlers(): void {
   })
   ipcMain.handle('data:getQuestWikiImages', (_e, taskId: unknown) => {
     if (!isValidTaskId(taskId)) throw new Error('getQuestWikiImages: invalid task id')
-    return getQuestWikiImages(taskId)
+    return getQuestWikiImages(taskId, loadSettings().profile)
   })
   ipcMain.handle('data:getCrafts', () => getCrafts(loadSettings().profile))
   ipcMain.handle('data:getAmmo', () => getAmmo())
@@ -297,6 +297,11 @@ function registerIpcHandlers(): void {
         onItems: (items) => send('data:pricesUpdated', items),
         onCrafts: (crafts) => send('data:craftsUpdated', crafts)
       })
+      // The *task catalog* is also mode-scoped (PvE 506 vs PvP 510 tasks), so
+      // re-seed the watcher — otherwise it keeps matching live log events
+      // against the previous mode's task ids. The renderer still holds the old
+      // list until reload; see the note in PLAN.md Phase 13.
+      void watcher?.seedTasks(() => getTasks(updated.profile))
     }
     // Hotkey changed while capture is armed → re-register on the new key.
     if ('captureHotkey' in patch && captureManager?.isArmed()) {

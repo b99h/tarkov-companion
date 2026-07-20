@@ -10,6 +10,9 @@ import {
   matchOcrLinesToTasks,
   compareTraders,
   compareMaps,
+  normalizeFaction,
+  duplicateTaskNames,
+  taskNameQualifier,
   normalizeMapName,
   compareAvailableQuests,
   kappaPriorityScore,
@@ -551,5 +554,62 @@ describe('compareMaps', () => {
   it('matches the full canonical order end to end', () => {
     const shuffled = [...MAP_ORDER].reverse()
     expect([...shuffled].sort(compareMaps)).toEqual(MAP_ORDER)
+  })
+})
+
+describe('normalizeFaction', () => {
+  // Regression: tarkov.dev sends UPPERCASE faction names. The original
+  // exact-case check ('Usec'/'Bear') mapped every faction-locked task to
+  // 'Any', so BEAR and USEC twins of the same quest both rendered on the
+  // board (duplicate "Drip-Out - Part 1" under Ragman) and Quest Catchup's
+  // faction filter silently matched everything.
+  it('accepts the API’s uppercase casing', () => {
+    expect(normalizeFaction('USEC')).toBe('Usec')
+    expect(normalizeFaction('BEAR')).toBe('Bear')
+  })
+
+  it('accepts the internal casing too', () => {
+    expect(normalizeFaction('Usec')).toBe('Usec')
+    expect(normalizeFaction('Bear')).toBe('Bear')
+  })
+
+  it('falls back to Any for null, empty, and unknown factions', () => {
+    expect(normalizeFaction(null)).toBe('Any')
+    expect(normalizeFaction('')).toBe('Any')
+    expect(normalizeFaction('Any')).toBe('Any')
+    expect(normalizeFaction('Scav')).toBe('Any')
+  })
+})
+
+describe('duplicateTaskNames / taskNameQualifier', () => {
+  // Real shape from the live catalog: three distinct "Make Amends" quests under
+  // Mechanic, each gated behind a different upstream branch.
+  const equipment = task({ id: 'eq', name: 'Make Amends - Equipment' })
+  const sweep = task({ id: 'sw', name: 'Make Amends - Sweep Up' })
+  const amends1 = task({ id: 'm1', name: 'Make Amends', requiredTaskIds: ['eq'] })
+  const amends2 = task({ id: 'm2', name: 'Make Amends', requiredTaskIds: ['sw'] })
+  const solo = task({ id: 's', name: 'Debut' })
+  const all = [equipment, sweep, amends1, amends2, solo]
+  const nameById = new Map(all.map((t) => [t.id, t.name]))
+
+  it('reports only names held by more than one task', () => {
+    expect(duplicateTaskNames(all)).toEqual(new Set(['Make Amends']))
+  })
+
+  it('distinguishes same-name quests by their differing prerequisites', () => {
+    const dupes = duplicateTaskNames(all)
+    expect(taskNameQualifier(amends1, dupes, nameById)).toBe('after Make Amends - Equipment')
+    expect(taskNameQualifier(amends2, dupes, nameById)).toBe('after Make Amends - Sweep Up')
+  })
+
+  it('returns null for an unambiguous name, so normal rows are untouched', () => {
+    expect(taskNameQualifier(solo, duplicateTaskNames(all), nameById)).toBeNull()
+  })
+
+  it('returns null when a duplicated name has no resolvable prerequisite', () => {
+    const a = task({ id: 'a1', name: 'Twin' })
+    const b = task({ id: 'a2', name: 'Twin' })
+    const dupes = duplicateTaskNames([a, b])
+    expect(taskNameQualifier(a, dupes, new Map())).toBeNull()
   })
 })

@@ -90,7 +90,10 @@ async function getOrRefresh<T>(
 // fields on TaskData/ItemData/CraftData/MapProjection) always invalidates old
 // on-disk cache instead of serving stale data the current code doesn't know
 // how to read (see the memory note on this class of bug from Phase 4).
-const TASKS_CACHE_KEY = 'tasks_v4'
+// Bumped v4→v5 and made per-mode when gameMode was added to the tasks query:
+// the PvE and PvP catalogs genuinely differ (506 vs 510 tasks), so a shared key
+// would serve a PvE player the PvP quest list.
+const tasksCacheKey = (mode: GameMode): string => `tasks_v5_${mode}`
 
 // Price-sensitive caches are keyed per game mode (PvE and PvP have separate
 // economies) so switching profiles never serves the other mode's prices. The
@@ -99,8 +102,9 @@ const toGameMode = (profile: LogProfile): GameMode => (profile === 'pve' ? 'pve'
 const itemsCacheKey = (mode: GameMode): string => `items_v4_${mode}`
 const craftsCacheKey = (mode: GameMode): string => `crafts_v2_${mode}`
 
-export function getTasks(): Promise<TaskData[]> {
-  return getOrRefresh(TASKS_CACHE_KEY, TASKS_TTL_MS, fetchTasks)
+export function getTasks(profile: LogProfile): Promise<TaskData[]> {
+  const mode = toGameMode(profile)
+  return getOrRefresh(tasksCacheKey(mode), TASKS_TTL_MS, () => fetchTasks(mode))
 }
 
 export function getItems(profile: LogProfile): Promise<ItemData[]> {
@@ -172,8 +176,11 @@ export function getStaticMapImage(normalizedName: string, url: string): Promise<
  * plus a handful of image downloads per quest, then served from disk. Empty
  * results (no link / no gallery) are cached too, so they aren't refetched.
  */
-export async function getQuestWikiImages(taskId: string): Promise<QuestWikiImages> {
-  const tasks = await getTasks()
+export async function getQuestWikiImages(
+  taskId: string,
+  profile: LogProfile
+): Promise<QuestWikiImages> {
+  const tasks = await getTasks(profile)
   const task = tasks.find((t) => t.id === taskId) ?? null
   return getOrRefresh(`wikiImages_v1_${taskId}`, WIKI_IMAGES_TTL_MS, () =>
     fetchQuestWikiImages(taskId, task?.wikiLink ?? null)
